@@ -3,6 +3,8 @@ import os
 from flask import Flask
 
 from labmm.config import config_map
+from flask_cors import CORS
+
 from labmm.extensions import db, jwt, ma, migrate
 
 
@@ -14,6 +16,7 @@ def create_app(env: str | None = None) -> Flask:
     app.config.from_object(config_map[env])
 
     # Extensions
+    CORS(app, origins=["http://localhost:4200"])
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)

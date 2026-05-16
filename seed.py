@@ -19,14 +19,14 @@ from labmm.models.member import Member
 def seed():
     app = create_app()
     with app.app_context():
-        if Member.query.count() > 0:
-            print("Database already seeded — skipping.")
-            return
-
-        email = os.environ.get("ADMIN_EMAIL", "admin@labmm.local")
+        email = os.environ.get("ADMIN_EMAIL", "admin@labmm.local").strip().lower()
         password = os.environ.get("ADMIN_PASSWORD", "changeme")
         first_name = os.environ.get("ADMIN_FIRST_NAME", "Admin")
         last_name = os.environ.get("ADMIN_LAST_NAME", "User")
+
+        if Member.query.filter_by(email=email).first():
+            print(f"Admin account already exists ({email}) — skipping.")
+            return
 
         admin = Member(
             first_name=first_name,

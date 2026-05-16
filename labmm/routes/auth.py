@@ -43,6 +43,11 @@ def register():
             abort(403, "Only super-admins can register new members.")
 
     data = request.get_json(silent=True) or {}
+
+    # Normalize email so login (which also lowercases) can always find the account
+    if "email" in data:
+        data = {**data, "email": data["email"].strip().lower()}
+
     try:
         member = member_input_schema.load(data)
     except ValidationError as exc:
@@ -51,7 +56,11 @@ def register():
     if Member.query.filter_by(email=member.email).first():
         return jsonify(error="Email already registered."), 409
 
-    member.set_password(data["password"])
+    password = data.get("password", "")
+    if len(password) < 8:
+        return jsonify(errors={"password": ["Password must be at least 8 characters."]}), 422
+
+    member.set_password(password)
     if is_bootstrap:
         member.is_super_admin = True
 
