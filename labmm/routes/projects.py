@@ -2,7 +2,7 @@ from flask import Blueprint, abort, jsonify, request
 from marshmallow import ValidationError
 
 from labmm.extensions import db
-from labmm.models.lab_membership import LabRole
+from labmm.models.lab_membership import LabRole, MANAGER_ROLES
 from labmm.models.laboratory import Laboratory
 from labmm.models.member import Member
 from labmm.models.project import Project
@@ -26,7 +26,7 @@ def list_projects(lab_id: int):
 
 
 @bp.post("/labs/<int:lab_id>/projects")
-@require_lab_role(LabRole.manager, LabRole.engineer)
+@require_lab_role(*MANAGER_ROLES, LabRole.tech_lead, LabRole.engineer)
 def create_project(lab_id: int):
     lab = db.session.get(Laboratory, lab_id)
     if not lab:
@@ -52,7 +52,7 @@ def get_project(lab_id: int, project_id: int):
 
 
 @bp.put("/labs/<int:lab_id>/projects/<int:project_id>")
-@require_lab_role(LabRole.manager, LabRole.engineer)
+@require_lab_role(*MANAGER_ROLES, LabRole.tech_lead, LabRole.engineer)
 def update_project(lab_id: int, project_id: int):
     project = Project.query.filter_by(id=project_id, lab_id=lab_id).first()
     if not project:
@@ -67,7 +67,7 @@ def update_project(lab_id: int, project_id: int):
 
 
 @bp.delete("/labs/<int:lab_id>/projects/<int:project_id>")
-@require_lab_role(LabRole.manager)
+@require_lab_role(*MANAGER_ROLES)
 def delete_project(lab_id: int, project_id: int):
     project = Project.query.filter_by(id=project_id, lab_id=lab_id).first()
     if not project:
@@ -78,7 +78,7 @@ def delete_project(lab_id: int, project_id: int):
 
 
 @bp.post("/labs/<int:lab_id>/projects/<int:project_id>/members")
-@require_lab_role(LabRole.manager, LabRole.engineer)
+@require_lab_role(*MANAGER_ROLES, LabRole.tech_lead, LabRole.engineer)
 def add_member_to_project(lab_id: int, project_id: int):
     project = Project.query.filter_by(id=project_id, lab_id=lab_id).first()
     if not project:
@@ -98,7 +98,7 @@ def add_member_to_project(lab_id: int, project_id: int):
 
 
 @bp.delete("/labs/<int:lab_id>/projects/<int:project_id>/members/<int:member_id>")
-@require_lab_role(LabRole.manager, LabRole.engineer)
+@require_lab_role(*MANAGER_ROLES, LabRole.tech_lead, LabRole.engineer)
 def remove_member_from_project(lab_id: int, project_id: int, member_id: int):
     project = Project.query.filter_by(id=project_id, lab_id=lab_id).first()
     if not project:

@@ -2,7 +2,7 @@ from flask import Blueprint, abort, jsonify, request
 from marshmallow import ValidationError
 
 from labmm.extensions import db
-from labmm.models.lab_membership import LabRole
+from labmm.models.lab_membership import LabRole, MANAGER_ROLES
 from labmm.models.laboratory import Laboratory
 from labmm.models.member import Member
 from labmm.models.research import Research
@@ -26,7 +26,7 @@ def list_research(lab_id: int):
 
 
 @bp.post("/labs/<int:lab_id>/research")
-@require_lab_role(LabRole.manager)
+@require_lab_role(*MANAGER_ROLES)
 def create_research(lab_id: int):
     lab = db.session.get(Laboratory, lab_id)
     if not lab:
@@ -52,7 +52,7 @@ def get_research(lab_id: int, research_id: int):
 
 
 @bp.put("/labs/<int:lab_id>/research/<int:research_id>")
-@require_lab_role(LabRole.manager)
+@require_lab_role(*MANAGER_ROLES)
 def update_research(lab_id: int, research_id: int):
     group = Research.query.filter_by(id=research_id, lab_id=lab_id).first()
     if not group:
@@ -67,7 +67,7 @@ def update_research(lab_id: int, research_id: int):
 
 
 @bp.delete("/labs/<int:lab_id>/research/<int:research_id>")
-@require_lab_role(LabRole.manager)
+@require_lab_role(*MANAGER_ROLES)
 def delete_research(lab_id: int, research_id: int):
     group = Research.query.filter_by(id=research_id, lab_id=lab_id).first()
     if not group:
@@ -78,7 +78,7 @@ def delete_research(lab_id: int, research_id: int):
 
 
 @bp.post("/labs/<int:lab_id>/research/<int:research_id>/members")
-@require_lab_role(LabRole.manager)
+@require_lab_role(*MANAGER_ROLES)
 def add_member_to_research(lab_id: int, research_id: int):
     group = Research.query.filter_by(id=research_id, lab_id=lab_id).first()
     if not group:
@@ -98,7 +98,7 @@ def add_member_to_research(lab_id: int, research_id: int):
 
 
 @bp.delete("/labs/<int:lab_id>/research/<int:research_id>/members/<int:member_id>")
-@require_lab_role(LabRole.manager)
+@require_lab_role(*MANAGER_ROLES)
 def remove_member_from_research(lab_id: int, research_id: int, member_id: int):
     group = Research.query.filter_by(id=research_id, lab_id=lab_id).first()
     if not group:

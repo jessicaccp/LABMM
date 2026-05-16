@@ -81,7 +81,7 @@ def manager(app, db_tables, lab):
                        email="manager@lab.local")
     with app.app_context():
         membership = LabMembership(member_id=mid, lab_id=lab,
-                                   role=LabRole.manager)
+                                   role=LabRole.engineering_manager)
         _db.session.add(membership)
         _db.session.commit()
     return mid

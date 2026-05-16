@@ -4,7 +4,7 @@ from marshmallow import ValidationError
 
 from labmm.extensions import db
 from labmm.models.article import Article
-from labmm.models.lab_membership import LabRole
+from labmm.models.lab_membership import LabRole, MANAGER_ROLES
 from labmm.models.laboratory import Laboratory
 from labmm.models.member import Member
 from labmm.schemas.article_schema import (
@@ -36,7 +36,7 @@ def get_article(lab_id: int, article_id: int):
 
 
 @bp.post("/labs/<int:lab_id>/articles")
-@require_lab_role(LabRole.manager, LabRole.engineer, LabRole.researcher)
+@require_lab_role(*MANAGER_ROLES, LabRole.tech_lead, LabRole.engineer, LabRole.researcher)
 def create_article(lab_id: int):
     lab = db.session.get(Laboratory, lab_id)
     if not lab:
@@ -53,7 +53,7 @@ def create_article(lab_id: int):
 
 
 @bp.put("/labs/<int:lab_id>/articles/<int:article_id>")
-@require_lab_role(LabRole.manager, LabRole.engineer, LabRole.researcher)
+@require_lab_role(*MANAGER_ROLES, LabRole.tech_lead, LabRole.engineer, LabRole.researcher)
 def update_article(lab_id: int, article_id: int):
     article = Article.query.filter_by(id=article_id, lab_id=lab_id).first()
     if not article:
@@ -68,7 +68,7 @@ def update_article(lab_id: int, article_id: int):
 
 
 @bp.delete("/labs/<int:lab_id>/articles/<int:article_id>")
-@require_lab_role(LabRole.manager)
+@require_lab_role(*MANAGER_ROLES)
 def delete_article(lab_id: int, article_id: int):
     article = Article.query.filter_by(id=article_id, lab_id=lab_id).first()
     if not article:
@@ -79,7 +79,7 @@ def delete_article(lab_id: int, article_id: int):
 
 
 @bp.post("/labs/<int:lab_id>/articles/<int:article_id>/authors")
-@require_lab_role(LabRole.manager, LabRole.engineer)
+@require_lab_role(*MANAGER_ROLES, LabRole.tech_lead, LabRole.engineer)
 def add_author(lab_id: int, article_id: int):
     article = Article.query.filter_by(id=article_id, lab_id=lab_id).first()
     if not article:
@@ -99,7 +99,7 @@ def add_author(lab_id: int, article_id: int):
 
 
 @bp.delete("/labs/<int:lab_id>/articles/<int:article_id>/authors/<int:member_id>")
-@require_lab_role(LabRole.manager, LabRole.engineer)
+@require_lab_role(*MANAGER_ROLES, LabRole.tech_lead, LabRole.engineer)
 def remove_author(lab_id: int, article_id: int, member_id: int):
     article = Article.query.filter_by(id=article_id, lab_id=lab_id).first()
     if not article:

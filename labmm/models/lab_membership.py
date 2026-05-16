@@ -5,10 +5,28 @@ from labmm.extensions import db
 
 
 class LabRole(str, enum.Enum):
-    manager = "manager"
+    ceo = "ceo"                               # Professor responsible for the lab
+    engineering_manager = "engineering_manager"
+    project_manager = "project_manager"
+    research_manager = "research_manager"
+    tech_lead = "tech_lead"
     engineer = "engineer"
     researcher = "researcher"
     staff = "staff"
+
+
+# Roles that can manage lab membership
+MANAGER_ROLES = frozenset({
+    LabRole.ceo,
+    LabRole.engineering_manager,
+    LabRole.project_manager,
+    LabRole.research_manager,
+})
+
+
+class CompensationType(str, enum.Enum):
+    project_salary = "project_salary"
+    research_grant = "research_grant"
 
 
 class LabMembership(db.Model):
@@ -26,6 +44,8 @@ class LabMembership(db.Model):
     joined_at = db.Column(
         db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
     )
+    compensation_type = db.Column(db.Enum(CompensationType), nullable=True)
+    compensation_value = db.Column(db.Numeric(10, 2), nullable=True)
 
     # Relationships
     member = db.relationship("Member", back_populates="lab_memberships")

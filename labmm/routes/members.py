@@ -3,12 +3,13 @@ from flask_jwt_extended import get_jwt_identity, jwt_required
 from marshmallow import ValidationError
 
 from labmm.extensions import db
-from labmm.models.lab_membership import LabMembership, LabRole
+from labmm.models.lab_membership import CompensationType, LabMembership, LabRole, MANAGER_ROLES
 from labmm.models.laboratory import Laboratory
 from labmm.models.member import Member
 from labmm.schemas.lab_membership_schema import (
     lab_membership_input_schema,
     lab_membership_schema,
+    lab_membership_update_schema,
     lab_memberships_schema,
 )
 from labmm.schemas.member_schema import member_schema, members_schema
@@ -28,7 +29,7 @@ def list_members(lab_id: int):
 
 
 @bp.post("/labs/<int:lab_id>/members")
-@require_lab_role(LabRole.manager)
+@require_lab_role(*MANAGER_ROLES)
 def add_member(lab_id: int):
     lab = db.session.get(Laboratory, lab_id)
     if not lab:
@@ -50,8 +51,13 @@ def add_member(lab_id: int):
     if existing:
         return jsonify(error="Member already belongs to this laboratory."), 409
 
+    ct = payload.get("compensation_type")
     membership = LabMembership(
-        member_id=member.id, lab_id=lab_id, role=LabRole(payload["role"])
+        member_id=member.id,
+        lab_id=lab_id,
+        role=LabRole(payload["role"]),
+        compensation_type=CompensationType(ct) if ct else None,
+        compensation_value=payload.get("compensation_value"),
     )
     db.session.add(membership)
     db.session.commit()
@@ -70,7 +76,7 @@ def get_member(lab_id: int, member_id: int):
 
 
 @bp.put("/labs/<int:lab_id>/members/<int:member_id>")
-@require_lab_role(LabRole.manager)
+@require_lab_role(*MANAGER_ROLES)
 def update_member_role(lab_id: int, member_id: int):
     membership = LabMembership.query.filter_by(
         lab_id=lab_id, member_id=member_id
@@ -79,20 +85,24 @@ def update_member_role(lab_id: int, member_id: int):
         abort(404, "Member not found in this laboratory.")
 
     data = request.get_json(silent=True) or {}
-    role_value = data.get("role")
-    if not role_value:
-        return jsonify(error="'role' field is required."), 422
     try:
-        membership.role = LabRole(role_value)
-    except ValueError:
-        return jsonify(error=f"Invalid role '{role_value}'."), 422
+        payload = lab_membership_update_schema.load(data)
+    except ValidationError as exc:
+        return jsonify(errors=exc.messages), 422
+
+    membership.role = LabRole(payload["role"])
+    ct = payload.get("compensation_type")
+    if "compensation_type" in data:
+        membership.compensation_type = CompensationType(ct) if ct else None
+    if "compensation_value" in data:
+        membership.compensation_value = payload.get("compensation_value")
 
     db.session.commit()
     return jsonify(lab_membership_schema.dump(membership)), 200
 
 
 @bp.delete("/labs/<int:lab_id>/members/<int:member_id>")
-@require_lab_role(LabRole.manager)
+@require_lab_role(*MANAGER_ROLES)
 def remove_member(lab_id: int, member_id: int):
     membership = LabMembership.query.filter_by(
         lab_id=lab_id, member_id=member_id

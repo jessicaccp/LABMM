@@ -3,7 +3,7 @@ from functools import wraps
 from flask import abort
 from flask_jwt_extended import get_jwt, verify_jwt_in_request
 
-from labmm.models.lab_membership import LabMembership, LabRole
+from labmm.models.lab_membership import LabMembership, LabRole, MANAGER_ROLES
 
 
 def require_super_admin(fn):
@@ -55,6 +55,4 @@ def require_lab_role(*allowed_roles: LabRole):
 
 def require_lab_member(fn):
     """Allow any authenticated member of the lab (all roles)."""
-    return require_lab_role(
-        LabRole.manager, LabRole.engineer, LabRole.researcher, LabRole.staff
-    )(fn)
+    return require_lab_role(*LabRole)(fn)
