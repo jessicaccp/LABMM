@@ -6,6 +6,7 @@ from labmm.routes.laboratories import bp as labs_bp
 from labmm.routes.members import bp as members_bp
 from labmm.routes.projects import bp as projects_bp
 from labmm.routes.research import bp as research_bp
+from labmm.routes.roles import bp as roles_bp
 
 
 def register_blueprints(app: Flask) -> None:
@@ -15,3 +16,4 @@ def register_blueprints(app: Flask) -> None:
     app.register_blueprint(projects_bp)
     app.register_blueprint(research_bp)
     app.register_blueprint(articles_bp)
+    app.register_blueprint(roles_bp)

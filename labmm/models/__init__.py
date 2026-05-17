@@ -4,3 +4,4 @@ from labmm.models.laboratory import Laboratory  # noqa: F401
 from labmm.models.member import Member  # noqa: F401
 from labmm.models.project import Project, ProjectStatus, member_projects  # noqa: F401
 from labmm.models.research import Research, member_research  # noqa: F401
+from labmm.models.role import Role  # noqa: F401

@@ -66,5 +66,21 @@ def require_lab_role(*allowed_roles: LabRole):
 
 
 def require_lab_member(fn):
-    """Allow any authenticated member of the lab (all roles)."""
-    return require_lab_role(*LabRole)(fn)
+    """Allow any authenticated member of the lab regardless of role."""
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        verify_jwt_in_request()
+        claims = get_jwt()
+        if claims.get("is_super_admin"):
+            return fn(*args, **kwargs)
+        member_id = int(claims["sub"])
+        lab_id = kwargs.get("lab_id")
+        if lab_id is None:
+            abort(400, "lab_id missing from URL.")
+        membership = LabMembership.query.filter_by(
+            member_id=member_id, lab_id=lab_id
+        ).first()
+        if membership is None:
+            abort(403, "You are not a member of this laboratory.")
+        return fn(*args, **kwargs)
+    return wrapper

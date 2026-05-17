@@ -6,6 +6,16 @@ from labmm.extensions import db
 from labmm.models.lab_membership import CompensationType, LabMembership, LabRole, MANAGER_ROLES, ROLE_LEVEL
 from labmm.models.laboratory import Laboratory
 from labmm.models.member import Member
+from labmm.models.role import Role
+
+
+def _get_role_level(role_key: str) -> int:
+    """Level for a role key — checks system ROLE_LEVEL first, then DB for custom roles."""
+    level = ROLE_LEVEL.get(role_key)
+    if level is not None:
+        return level
+    role = Role.query.filter_by(key=role_key).first()
+    return role.level if role else 99
 from labmm.schemas.lab_membership_schema import (
     lab_membership_input_schema,
     lab_membership_schema,
@@ -105,14 +115,17 @@ def add_member(lab_id: int):
     except ValidationError as exc:
         return jsonify(errors=exc.messages), 422
 
-    new_role = LabRole(payload["role"])
+    role_key = payload["role"]
+    role_def = Role.query.filter_by(key=role_key).first()
+    if not role_def:
+        return jsonify(error=f"Unknown role: {role_key}"), 422
 
     # Hierarchy check: super-admins bypass; others can only assign roles below their own level
     if not claims.get("is_super_admin"):
         requester_ms = LabMembership.query.filter_by(
             member_id=requester_id, lab_id=lab_id
         ).first()
-        if ROLE_LEVEL[requester_ms.role] >= ROLE_LEVEL[new_role]:
+        if _get_role_level(requester_ms.role) >= role_def.level:
             abort(403, "You can only assign roles below your own level.")
 
     member = db.session.get(Member, payload["member_id"])
@@ -129,7 +142,7 @@ def add_member(lab_id: int):
     membership = LabMembership(
         member_id=member.id,
         lab_id=lab_id,
-        role=new_role,
+        role=role_key,
         specialization=payload.get("specialization"),
         compensation_type=CompensationType(ct) if ct else None,
         compensation_value=payload.get("compensation_value"),
@@ -169,15 +182,18 @@ def update_member_role(lab_id: int, member_id: int):
     except ValidationError as exc:
         return jsonify(errors=exc.messages), 422
 
-    new_role = LabRole(payload["role"])
+    role_key = payload["role"]
+    role_def = Role.query.filter_by(key=role_key).first()
+    if not role_def:
+        return jsonify(error=f"Unknown role: {role_key}"), 422
 
     if not claims.get("is_super_admin"):
         requester_ms = LabMembership.query.filter_by(
             member_id=requester_id, lab_id=lab_id
         ).first()
-        requester_level = ROLE_LEVEL[requester_ms.role]
-        target_level = ROLE_LEVEL[membership.role]
-        new_role_level = ROLE_LEVEL[new_role]
+        requester_level = _get_role_level(requester_ms.role)
+        target_level = _get_role_level(membership.role)
+        new_role_level = role_def.level
 
         if is_self:
             # Self-demotion: only a CEO may step down, and cannot reassign CEO to themselves
@@ -191,7 +207,7 @@ def update_member_role(lab_id: int, member_id: int):
             if requester_level >= new_role_level:
                 abort(403, "You can only assign roles below your own level.")
 
-    membership.role = new_role
+    membership.role = role_key
     if "specialization" in data:
         membership.specialization = payload.get("specialization")
     ct = payload.get("compensation_type")
@@ -223,7 +239,7 @@ def remove_member(lab_id: int, member_id: int):
         requester_ms = LabMembership.query.filter_by(
             member_id=requester_id, lab_id=lab_id
         ).first()
-        if ROLE_LEVEL[requester_ms.role] >= ROLE_LEVEL[membership.role]:
+        if _get_role_level(requester_ms.role) >= _get_role_level(membership.role):
             abort(403, "You can only remove members below your role level.")
 
     db.session.delete(membership)

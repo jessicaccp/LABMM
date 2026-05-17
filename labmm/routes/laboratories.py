@@ -1,5 +1,5 @@
 from flask import Blueprint, abort, jsonify, request
-from flask_jwt_extended import get_jwt_identity, jwt_required
+from flask_jwt_extended import get_jwt, get_jwt_identity, jwt_required
 from marshmallow import ValidationError
 
 from labmm.extensions import db
@@ -49,14 +49,18 @@ def create_lab():
     db.session.add(lab)
     db.session.flush()  # get lab.id before commit
 
-    # Auto-add the creating professor/admin as CEO of this lab
-    creator_id = int(get_jwt_identity())
-    membership = LabMembership(
-        member_id=creator_id,
-        lab_id=lab.id,
-        role=LabRole.ceo,
-    )
-    db.session.add(membership)
+    # Auto-add the creator as CEO — but skip for super-admins,
+    # who are above all lab roles and manage labs without a membership.
+    claims = get_jwt()
+    if not claims.get("is_super_admin"):
+        creator_id = int(get_jwt_identity())
+        membership = LabMembership(
+            member_id=creator_id,
+            lab_id=lab.id,
+            role=LabRole.ceo,
+        )
+        db.session.add(membership)
+
     db.session.commit()
     return jsonify(laboratory_schema.dump(lab)), 201
 

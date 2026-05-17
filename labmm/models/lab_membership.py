@@ -55,7 +55,7 @@ class LabMembership(db.Model):
         db.ForeignKey("laboratories.id", ondelete="CASCADE"),
         primary_key=True,
     )
-    role = db.Column(db.Enum(LabRole), nullable=False)
+    role = db.Column(db.String(64), nullable=False)
     specialization = db.Column(db.String(64), nullable=True)
     joined_at = db.Column(
         db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
