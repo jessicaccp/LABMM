@@ -32,7 +32,10 @@ class Member(db.Model):
         "Laboratory", foreign_keys=[desired_lab_id], backref=db.backref("pending_members", lazy="dynamic")
     )
     lab_memberships = db.relationship(
-        "LabMembership", back_populates="member", cascade="all, delete-orphan"
+        "LabMembership",
+        foreign_keys="[LabMembership.member_id]",
+        back_populates="member",
+        cascade="all, delete-orphan",
     )
     authored_articles = db.relationship(
         "Article", secondary="article_authors", back_populates="authors"

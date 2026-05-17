@@ -62,10 +62,16 @@ class LabMembership(db.Model):
     )
     compensation_type = db.Column(db.Enum(CompensationType), nullable=True)
     compensation_value = db.Column(db.Numeric(10, 2), nullable=True)
+    reports_to_id = db.Column(
+        db.Integer, db.ForeignKey("members.id", ondelete="SET NULL"), nullable=True
+    )
 
     # Relationships
-    member = db.relationship("Member", back_populates="lab_memberships")
+    member = db.relationship(
+        "Member", foreign_keys="[LabMembership.member_id]", back_populates="lab_memberships"
+    )
     laboratory = db.relationship("Laboratory", back_populates="memberships")
+    reports_to = db.relationship("Member", foreign_keys="[LabMembership.reports_to_id]")
 
     def __repr__(self) -> str:
         return f"<LabMembership member={self.member_id} lab={self.lab_id} role={self.role}>"

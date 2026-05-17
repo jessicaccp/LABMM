@@ -216,6 +216,16 @@ def update_member_role(lab_id: int, member_id: int):
     if "compensation_value" in data:
         membership.compensation_value = payload.get("compensation_value")
 
+    if "reports_to_id" in data:
+        if not claims.get("is_super_admin"):
+            if _get_role_level(requester_ms.role) != 0:
+                abort(403, "Only the CEO or a super admin can set the reporting structure.")
+        rid = payload.get("reports_to_id")
+        if rid is not None:
+            if not LabMembership.query.filter_by(member_id=rid, lab_id=lab_id).first():
+                abort(422, "reports_to_id must refer to a member of this laboratory.")
+        membership.reports_to_id = rid
+
     db.session.commit()
     return jsonify(lab_membership_schema.dump(membership)), 200
 
