@@ -1,9 +1,9 @@
 from flask import Blueprint, abort, jsonify, request
-from flask_jwt_extended import get_jwt_identity, jwt_required
+from flask_jwt_extended import get_jwt, get_jwt_identity, jwt_required
 from marshmallow import ValidationError
 
 from labmm.extensions import db
-from labmm.models.lab_membership import CompensationType, LabMembership, LabRole, MANAGER_ROLES
+from labmm.models.lab_membership import CompensationType, LabMembership, LabRole, MANAGER_ROLES, ROLE_LEVEL
 from labmm.models.laboratory import Laboratory
 from labmm.models.member import Member
 from labmm.schemas.lab_membership_schema import (
@@ -22,7 +22,6 @@ bp = Blueprint("members", __name__)
 @jwt_required()
 def get_member_detail(member_id: int):
     """Super-admin or CEO: return a single member with full lab_memberships."""
-    from flask_jwt_extended import get_jwt
     claims = get_jwt()
     current_id = get_jwt_identity()
 
@@ -52,7 +51,6 @@ def get_member_detail(member_id: int):
 @jwt_required()
 def list_all_members():
     """Super-admin or CEO: list members (CEOs see only their labs' members)."""
-    from flask_jwt_extended import get_jwt
     claims = get_jwt()
     current_id = get_jwt_identity()
 
@@ -92,8 +90,11 @@ def list_members(lab_id: int):
 
 
 @bp.post("/labs/<int:lab_id>/members")
-@require_lab_role(LabRole.ceo)
+@require_lab_member
 def add_member(lab_id: int):
+    claims = get_jwt()
+    requester_id = int(get_jwt_identity())
+
     lab = db.session.get(Laboratory, lab_id)
     if not lab:
         abort(404, "Laboratory not found.")
@@ -103,6 +104,16 @@ def add_member(lab_id: int):
         payload = lab_membership_input_schema.load(data)
     except ValidationError as exc:
         return jsonify(errors=exc.messages), 422
+
+    new_role = LabRole(payload["role"])
+
+    # Hierarchy check: super-admins bypass; others can only assign roles below their own level
+    if not claims.get("is_super_admin"):
+        requester_ms = LabMembership.query.filter_by(
+            member_id=requester_id, lab_id=lab_id
+        ).first()
+        if ROLE_LEVEL[requester_ms.role] >= ROLE_LEVEL[new_role]:
+            abort(403, "You can only assign roles below your own level.")
 
     member = db.session.get(Member, payload["member_id"])
     if not member:
@@ -118,7 +129,7 @@ def add_member(lab_id: int):
     membership = LabMembership(
         member_id=member.id,
         lab_id=lab_id,
-        role=LabRole(payload["role"]),
+        role=new_role,
         specialization=payload.get("specialization"),
         compensation_type=CompensationType(ct) if ct else None,
         compensation_value=payload.get("compensation_value"),
@@ -140,10 +151,11 @@ def get_member(lab_id: int, member_id: int):
 
 
 @bp.put("/labs/<int:lab_id>/members/<int:member_id>")
-@require_lab_role(LabRole.ceo)
+@require_lab_member
 def update_member_role(lab_id: int, member_id: int):
-    if int(get_jwt_identity()) == member_id:
-        abort(403, "You cannot change your own role.")
+    claims = get_jwt()
+    requester_id = int(get_jwt_identity())
+    is_self = requester_id == member_id
 
     membership = LabMembership.query.filter_by(
         lab_id=lab_id, member_id=member_id
@@ -157,7 +169,29 @@ def update_member_role(lab_id: int, member_id: int):
     except ValidationError as exc:
         return jsonify(errors=exc.messages), 422
 
-    membership.role = LabRole(payload["role"])
+    new_role = LabRole(payload["role"])
+
+    if not claims.get("is_super_admin"):
+        requester_ms = LabMembership.query.filter_by(
+            member_id=requester_id, lab_id=lab_id
+        ).first()
+        requester_level = ROLE_LEVEL[requester_ms.role]
+        target_level = ROLE_LEVEL[membership.role]
+        new_role_level = ROLE_LEVEL[new_role]
+
+        if is_self:
+            # Self-demotion: only a CEO may step down, and cannot reassign CEO to themselves
+            if target_level != 0:
+                abort(403, "You cannot change your own role.")
+            if new_role_level == 0:
+                abort(403, "You cannot keep the CEO role via self-demotion.")
+        else:
+            if requester_level >= target_level:
+                abort(403, "You can only manage members below your role level.")
+            if requester_level >= new_role_level:
+                abort(403, "You can only assign roles below your own level.")
+
+    membership.role = new_role
     if "specialization" in data:
         membership.specialization = payload.get("specialization")
     ct = payload.get("compensation_type")
@@ -171,9 +205,12 @@ def update_member_role(lab_id: int, member_id: int):
 
 
 @bp.delete("/labs/<int:lab_id>/members/<int:member_id>")
-@require_lab_role(LabRole.ceo)
+@require_lab_member
 def remove_member(lab_id: int, member_id: int):
-    if int(get_jwt_identity()) == member_id:
+    claims = get_jwt()
+    requester_id = int(get_jwt_identity())
+
+    if requester_id == member_id:
         abort(403, "You cannot remove yourself from a lab.")
 
     membership = LabMembership.query.filter_by(
@@ -181,6 +218,14 @@ def remove_member(lab_id: int, member_id: int):
     ).first()
     if not membership:
         abort(404, "Member not found in this laboratory.")
+
+    if not claims.get("is_super_admin"):
+        requester_ms = LabMembership.query.filter_by(
+            member_id=requester_id, lab_id=lab_id
+        ).first()
+        if ROLE_LEVEL[requester_ms.role] >= ROLE_LEVEL[membership.role]:
+            abort(403, "You can only remove members below your role level.")
+
     db.session.delete(membership)
     db.session.commit()
     return "", 204
@@ -191,7 +236,6 @@ def remove_member(lab_id: int, member_id: int):
 @bp.put("/members/<int:member_id>")
 @jwt_required()
 def update_own_profile(member_id: int):
-    from flask_jwt_extended import get_jwt
     claims = get_jwt()
     identity = int(get_jwt_identity())
 
@@ -238,7 +282,6 @@ def lookup_member():
 @jwt_required()
 def list_pending_members():
     """Return all unapproved members. Professors see only their CEO labs' pending members."""
-    from flask_jwt_extended import get_jwt
     claims = get_jwt()
     if claims.get("is_super_admin"):
         pending = Member.query.filter_by(is_approved=False).all()
@@ -260,7 +303,6 @@ def list_pending_members():
 @jwt_required()
 def approve_member(member_id: int):
     """Approve a pending member. Professors may only approve members for their CEO labs."""
-    from flask_jwt_extended import get_jwt
     claims = get_jwt()
     is_super_admin = claims.get("is_super_admin")
     is_professor = claims.get("is_professor")
@@ -292,7 +334,6 @@ def approve_member(member_id: int):
 @jwt_required()
 def deactivate_member(member_id: int):
     """Super-admin: deactivate a member account (blocks login)."""
-    from flask_jwt_extended import get_jwt
     if not get_jwt().get("is_super_admin"):
         abort(403, "Super-admin access required.")
     member = db.session.get(Member, member_id)
@@ -309,7 +350,6 @@ def deactivate_member(member_id: int):
 @jwt_required()
 def activate_member(member_id: int):
     """Super-admin: reactivate a previously deactivated member."""
-    from flask_jwt_extended import get_jwt
     if not get_jwt().get("is_super_admin"):
         abort(403, "Super-admin access required.")
     member = db.session.get(Member, member_id)

@@ -24,6 +24,19 @@ MANAGER_ROLES = frozenset({
     LabRole.chief_scientist,
 })
 
+# Hierarchy level — lower number = more authority
+ROLE_LEVEL: dict[LabRole, int] = {
+    LabRole.ceo: 0,
+    LabRole.engineering_manager: 1,
+    LabRole.project_manager: 1,
+    LabRole.chief_scientist: 1,
+    LabRole.tech_lead: 2,
+    LabRole.engineer: 3,
+    LabRole.researcher: 3,
+    LabRole.research_fellow: 3,
+    LabRole.staff: 4,
+}
+
 
 class CompensationType(str, enum.Enum):
     project_salary = "project_salary"
