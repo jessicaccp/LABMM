@@ -57,7 +57,7 @@ def create_lab():
         membership = LabMembership(
             member_id=creator_id,
             lab_id=lab.id,
-            role=LabRole.ceo,
+            roles=[LabRole.ceo],
         )
         db.session.add(membership)
 

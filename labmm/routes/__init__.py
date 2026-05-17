@@ -17,3 +17,7 @@ def register_blueprints(app: Flask) -> None:
     app.register_blueprint(research_bp)
     app.register_blueprint(articles_bp)
     app.register_blueprint(roles_bp)
+
+    if app.debug:
+        from labmm.routes.debug import bp as debug_bp
+        app.register_blueprint(debug_bp)
