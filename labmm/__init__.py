@@ -16,7 +16,8 @@ def create_app(env: str | None = None) -> Flask:
     app.config.from_object(config_map[env])
 
     # Extensions
-    CORS(app, origins=["http://localhost:4200"])
+    _cors_origins = os.environ.get("CORS_ORIGINS", "http://localhost:4200").split(",")
+    CORS(app, origins=_cors_origins)
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
