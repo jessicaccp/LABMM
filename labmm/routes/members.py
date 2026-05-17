@@ -142,6 +142,9 @@ def get_member(lab_id: int, member_id: int):
 @bp.put("/labs/<int:lab_id>/members/<int:member_id>")
 @require_lab_role(LabRole.ceo)
 def update_member_role(lab_id: int, member_id: int):
+    if int(get_jwt_identity()) == member_id:
+        abort(403, "You cannot change your own role.")
+
     membership = LabMembership.query.filter_by(
         lab_id=lab_id, member_id=member_id
     ).first()
@@ -170,6 +173,9 @@ def update_member_role(lab_id: int, member_id: int):
 @bp.delete("/labs/<int:lab_id>/members/<int:member_id>")
 @require_lab_role(LabRole.ceo)
 def remove_member(lab_id: int, member_id: int):
+    if int(get_jwt_identity()) == member_id:
+        abort(403, "You cannot remove yourself from a lab.")
+
     membership = LabMembership.query.filter_by(
         lab_id=lab_id, member_id=member_id
     ).first()
