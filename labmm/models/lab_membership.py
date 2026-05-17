@@ -55,7 +55,7 @@ class LabMembership(db.Model):
         db.ForeignKey("laboratories.id", ondelete="CASCADE"),
         primary_key=True,
     )
-    role = db.Column(db.String(64), nullable=False)
+    roles = db.Column(db.JSON, nullable=False, default=list)
     specialization = db.Column(db.String(64), nullable=True)
     joined_at = db.Column(
         db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
@@ -73,5 +73,12 @@ class LabMembership(db.Model):
     laboratory = db.relationship("Laboratory", back_populates="memberships")
     reports_to = db.relationship("Member", foreign_keys="[LabMembership.reports_to_id]")
 
+    @property
+    def primary_role(self) -> str:
+        """Return the highest-authority role (lowest ROLE_LEVEL number)."""
+        if not self.roles:
+            return ""
+        return min(self.roles, key=lambda r: ROLE_LEVEL.get(r, 99))
+
     def __repr__(self) -> str:
-        return f"<LabMembership member={self.member_id} lab={self.lab_id} role={self.role}>"
+        return f"<LabMembership member={self.member_id} lab={self.lab_id} roles={self.roles}>"

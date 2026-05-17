@@ -10,7 +10,7 @@ class LabMembershipSchema(ma.SQLAlchemyAutoSchema):
         load_instance = True
         include_fk = True
 
-    role = msh.fields.String()
+    roles = msh.fields.List(msh.fields.String())
     compensation_type = msh.fields.Enum(
         CompensationType, by_value=True, allow_none=True, dump_default=None
     )
@@ -20,7 +20,7 @@ class LabMembershipSchema(ma.SQLAlchemyAutoSchema):
 
 class LabMembershipInputSchema(msh.Schema):
     member_id = msh.fields.Integer(required=True)
-    role = msh.fields.String(required=True)
+    roles = msh.fields.List(msh.fields.String(), required=True, validate=msh.validate.Length(min=1))
     specialization = msh.fields.String(load_default=None, allow_none=True)
     compensation_type = msh.fields.String(
         load_default=None,
@@ -33,7 +33,7 @@ class LabMembershipInputSchema(msh.Schema):
 
 
 class LabMembershipUpdateSchema(msh.Schema):
-    role = msh.fields.String(required=True)
+    roles = msh.fields.List(msh.fields.String(), required=True, validate=msh.validate.Length(min=1))
     specialization = msh.fields.String(load_default=None, allow_none=True)
     compensation_type = msh.fields.String(
         load_default=None,

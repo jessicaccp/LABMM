@@ -16,6 +16,11 @@ def _get_role_level(role_key: str) -> int:
         return level
     role = Role.query.filter_by(key=role_key).first()
     return role.level if role else 99
+
+
+def _primary_role_level(ms: LabMembership) -> int:
+    """Level for a membership — the level of its highest-authority role."""
+    return min((_get_role_level(r) for r in (ms.roles or [])), default=99)
 from labmm.schemas.lab_membership_schema import (
     lab_membership_input_schema,
     lab_membership_schema,
@@ -38,9 +43,8 @@ def get_member_detail(member_id: int):
     if not claims.get("is_super_admin"):
         # CEOs may access members that belong to one of their labs
         ceo_lab_ids = [
-            m.lab_id for m in LabMembership.query.filter_by(
-                member_id=current_id, role=LabRole.ceo
-            ).all()
+            m.lab_id for m in LabMembership.query.filter_by(member_id=current_id).all()
+            if LabRole.ceo in (m.roles or [])
         ]
         if not ceo_lab_ids:
             abort(403, "Super-admin or CEO access required.")
@@ -70,9 +74,8 @@ def list_all_members():
 
     # Allow CEOs to list members of labs they lead
     ceo_lab_ids = [
-        m.lab_id for m in LabMembership.query.filter_by(
-            member_id=current_id, role=LabRole.ceo
-        ).all()
+        m.lab_id for m in LabMembership.query.filter_by(member_id=current_id).all()
+        if LabRole.ceo in (m.roles or [])
     ]
     if not ceo_lab_ids:
         abort(403, "Access denied.")
@@ -115,17 +118,21 @@ def add_member(lab_id: int):
     except ValidationError as exc:
         return jsonify(errors=exc.messages), 422
 
-    role_key = payload["role"]
-    role_def = Role.query.filter_by(key=role_key).first()
-    if not role_def:
-        return jsonify(error=f"Unknown role: {role_key}"), 422
+    role_keys = payload["roles"]
+    role_defs = []
+    for rk in role_keys:
+        rd = Role.query.filter_by(key=rk).first()
+        if not rd:
+            return jsonify(error=f"Unknown role: {rk}"), 422
+        role_defs.append(rd)
+    min_new_level = min(rd.level for rd in role_defs)
 
     # Hierarchy check: super-admins bypass; others can only assign roles below their own level
     if not claims.get("is_super_admin"):
         requester_ms = LabMembership.query.filter_by(
             member_id=requester_id, lab_id=lab_id
         ).first()
-        if _get_role_level(requester_ms.role) >= role_def.level:
+        if _primary_role_level(requester_ms) >= min_new_level:
             abort(403, "You can only assign roles below your own level.")
 
     member = db.session.get(Member, payload["member_id"])
@@ -142,7 +149,7 @@ def add_member(lab_id: int):
     membership = LabMembership(
         member_id=member.id,
         lab_id=lab_id,
-        role=role_key,
+        roles=role_keys,
         specialization=payload.get("specialization"),
         compensation_type=CompensationType(ct) if ct else None,
         compensation_value=payload.get("compensation_value"),
@@ -182,32 +189,35 @@ def update_member_role(lab_id: int, member_id: int):
     except ValidationError as exc:
         return jsonify(errors=exc.messages), 422
 
-    role_key = payload["role"]
-    role_def = Role.query.filter_by(key=role_key).first()
-    if not role_def:
-        return jsonify(error=f"Unknown role: {role_key}"), 422
+    role_keys = payload["roles"]
+    role_defs = []
+    for rk in role_keys:
+        rd = Role.query.filter_by(key=rk).first()
+        if not rd:
+            return jsonify(error=f"Unknown role: {rk}"), 422
+        role_defs.append(rd)
+    min_new_level = min(rd.level for rd in role_defs)
 
     if not claims.get("is_super_admin"):
         requester_ms = LabMembership.query.filter_by(
             member_id=requester_id, lab_id=lab_id
         ).first()
-        requester_level = _get_role_level(requester_ms.role)
-        target_level = _get_role_level(membership.role)
-        new_role_level = role_def.level
+        requester_level = _primary_role_level(requester_ms)
+        target_level = _primary_role_level(membership)
 
         if is_self:
             # Self-demotion: only a CEO may step down, and cannot reassign CEO to themselves
             if target_level != 0:
                 abort(403, "You cannot change your own role.")
-            if new_role_level == 0:
+            if min_new_level == 0:
                 abort(403, "You cannot keep the CEO role via self-demotion.")
         else:
             if requester_level >= target_level:
                 abort(403, "You can only manage members below your role level.")
-            if requester_level >= new_role_level:
+            if requester_level >= min_new_level:
                 abort(403, "You can only assign roles below your own level.")
 
-    membership.role = role_key
+    membership.roles = role_keys
     if "specialization" in data:
         membership.specialization = payload.get("specialization")
     ct = payload.get("compensation_type")
@@ -218,7 +228,7 @@ def update_member_role(lab_id: int, member_id: int):
 
     if "reports_to_id" in data:
         if not claims.get("is_super_admin"):
-            if _get_role_level(requester_ms.role) != 0:
+            if _primary_role_level(requester_ms) != 0:
                 abort(403, "Only the CEO or a super admin can set the reporting structure.")
         rid = payload.get("reports_to_id")
         if rid is not None:
@@ -249,7 +259,7 @@ def remove_member(lab_id: int, member_id: int):
         requester_ms = LabMembership.query.filter_by(
             member_id=requester_id, lab_id=lab_id
         ).first()
-        if _get_role_level(requester_ms.role) >= _get_role_level(membership.role):
+        if _primary_role_level(requester_ms) >= _primary_role_level(membership):
             abort(403, "You can only remove members below your role level.")
 
     db.session.delete(membership)
@@ -314,7 +324,8 @@ def list_pending_members():
     elif claims.get("is_professor"):
         member_id = int(get_jwt_identity())
         ceo_lab_ids = [
-            m.lab_id for m in LabMembership.query.filter_by(member_id=member_id, role=LabRole.ceo)
+            m.lab_id for m in LabMembership.query.filter_by(member_id=member_id).all()
+            if LabRole.ceo in (m.roles or [])
         ]
         pending = Member.query.filter(
             Member.is_approved == False,  # noqa: E712
@@ -345,7 +356,8 @@ def approve_member(member_id: int):
         # Professors may only approve members assigned to their CEO labs
         caller_id = int(get_jwt_identity())
         ceo_lab_ids = [
-            m.lab_id for m in LabMembership.query.filter_by(member_id=caller_id, role=LabRole.ceo)
+            m.lab_id for m in LabMembership.query.filter_by(member_id=caller_id).all()
+            if LabRole.ceo in (m.roles or [])
         ]
         if member.desired_lab_id not in ceo_lab_ids:
             abort(403, "You can only approve members who requested access to your laboratory.")

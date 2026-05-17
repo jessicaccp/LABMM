@@ -57,7 +57,7 @@ def require_lab_role(*allowed_roles: LabRole):
             if membership is None:
                 abort(403, "You are not a member of this laboratory.")
 
-            if membership.role not in allowed_roles:
+            if not any(r in allowed_roles for r in membership.roles):
                 abort(403, "Insufficient role for this action.")
 
             return fn(*args, **kwargs)
