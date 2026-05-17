@@ -8,10 +8,11 @@ class LabRole(str, enum.Enum):
     ceo = "ceo"                               # Professor responsible for the lab
     engineering_manager = "engineering_manager"
     project_manager = "project_manager"
-    research_manager = "research_manager"
+    chief_scientist = "chief_scientist"        # Renamed from research_manager
     tech_lead = "tech_lead"
     engineer = "engineer"
     researcher = "researcher"
+    research_fellow = "research_fellow"        # Junior researcher / student
     staff = "staff"
 
 
@@ -20,13 +21,14 @@ MANAGER_ROLES = frozenset({
     LabRole.ceo,
     LabRole.engineering_manager,
     LabRole.project_manager,
-    LabRole.research_manager,
+    LabRole.chief_scientist,
 })
 
 
 class CompensationType(str, enum.Enum):
     project_salary = "project_salary"
     research_grant = "research_grant"
+    volunteer = "volunteer"
 
 
 class LabMembership(db.Model):
@@ -41,6 +43,7 @@ class LabMembership(db.Model):
         primary_key=True,
     )
     role = db.Column(db.Enum(LabRole), nullable=False)
+    specialization = db.Column(db.String(64), nullable=True)
     joined_at = db.Column(
         db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
     )

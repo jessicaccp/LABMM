@@ -11,6 +11,9 @@ class ProjectSchema(ma.SQLAlchemyAutoSchema):
         include_fk = True
 
     status = msh.fields.Enum(ProjectStatus, by_value=True)
+    tech_lead = ma.Nested(
+        "MemberSchema", exclude=("lab_memberships",), dump_only=True
+    )
     members = ma.Nested(
         "MemberSchema", many=True, exclude=("lab_memberships",), dump_only=True
     )
@@ -33,6 +36,7 @@ class ProjectInputSchema(ma.SQLAlchemySchema):
     start_date = ma.auto_field()
     end_date = ma.auto_field()
     research_id = ma.auto_field()
+    tech_lead_id = ma.auto_field()
 
 
 project_schema = ProjectSchema()

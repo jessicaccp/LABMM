@@ -8,6 +8,9 @@ class ResearchSchema(ma.SQLAlchemyAutoSchema):
         load_instance = True
         include_fk = True
 
+    manager = ma.Nested(
+        "MemberSchema", exclude=("lab_memberships",), dump_only=True
+    )
     members = ma.Nested(
         "MemberSchema", many=True, exclude=("lab_memberships",), dump_only=True
     )
@@ -21,6 +24,7 @@ class ResearchInputSchema(ma.SQLAlchemySchema):
 
     name = ma.auto_field(required=True)
     description = ma.auto_field()
+    manager_id = ma.auto_field(load_default=None, allow_none=True)
 
 
 research_schema = ResearchSchema()

@@ -1,16 +1,24 @@
 from flask import Blueprint, abort, jsonify, request
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import get_jwt_identity, jwt_required
 from marshmallow import ValidationError
 
 from labmm.extensions import db
+from labmm.models.lab_membership import LabMembership, LabRole
 from labmm.models.laboratory import Laboratory
 from labmm.schemas.laboratory_schema import (
     laboratories_schema,
     laboratory_schema,
 )
-from labmm.utils.decorators import require_super_admin
+from labmm.utils.decorators import require_professor_or_super_admin, require_super_admin
 
 bp = Blueprint("laboratories", __name__, url_prefix="/labs")
+
+
+@bp.get("/directory")
+def labs_directory():
+    """Public endpoint — returns all lab ids and names for the self-registration form."""
+    labs = Laboratory.query.order_by(Laboratory.name).all()
+    return jsonify([{"id": lab.id, "name": lab.name} for lab in labs]), 200
 
 
 @bp.get("")
@@ -31,7 +39,7 @@ def list_labs():
 
 
 @bp.post("")
-@require_super_admin
+@require_professor_or_super_admin
 def create_lab():
     data = request.get_json(silent=True) or {}
     try:
@@ -39,6 +47,16 @@ def create_lab():
     except ValidationError as exc:
         return jsonify(errors=exc.messages), 422
     db.session.add(lab)
+    db.session.flush()  # get lab.id before commit
+
+    # Auto-add the creating professor/admin as CEO of this lab
+    creator_id = int(get_jwt_identity())
+    membership = LabMembership(
+        member_id=creator_id,
+        lab_id=lab.id,
+        role=LabRole.ceo,
+    )
+    db.session.add(membership)
     db.session.commit()
     return jsonify(laboratory_schema.dump(lab)), 201
 
@@ -76,3 +94,25 @@ def delete_lab(lab_id: int):
     db.session.delete(lab)
     db.session.commit()
     return "", 204
+
+
+@bp.post("/<int:lab_id>/deactivate")
+@require_super_admin
+def deactivate_lab(lab_id: int):
+    lab = db.session.get(Laboratory, lab_id)
+    if not lab:
+        abort(404, "Laboratory not found.")
+    lab.is_active = False
+    db.session.commit()
+    return jsonify(laboratory_schema.dump(lab)), 200
+
+
+@bp.post("/<int:lab_id>/activate")
+@require_super_admin
+def activate_lab(lab_id: int):
+    lab = db.session.get(Laboratory, lab_id)
+    if not lab:
+        abort(404, "Laboratory not found.")
+    lab.is_active = True
+    db.session.commit()
+    return jsonify(laboratory_schema.dump(lab)), 200

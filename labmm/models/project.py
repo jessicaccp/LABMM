@@ -36,6 +36,7 @@ class Project(db.Model):
     status = db.Column(
         db.Enum(ProjectStatus), default=ProjectStatus.planned, nullable=False
     )
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
     start_date = db.Column(db.Date, nullable=True)
     end_date = db.Column(db.Date, nullable=True)
     lab_id = db.Column(
@@ -49,6 +50,11 @@ class Project(db.Model):
         db.ForeignKey("research_groups.id", ondelete="SET NULL"),
         nullable=True,
     )
+    tech_lead_id = db.Column(
+        db.Integer,
+        db.ForeignKey("members.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     created_at = db.Column(
         db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
     )
@@ -56,6 +62,7 @@ class Project(db.Model):
     # Relationships
     laboratory = db.relationship("Laboratory", back_populates="projects")
     research_group = db.relationship("Research", back_populates="projects")
+    tech_lead = db.relationship("Member", foreign_keys=[tech_lead_id])
     members = db.relationship(
         "Member", secondary="member_projects", back_populates="projects"
     )

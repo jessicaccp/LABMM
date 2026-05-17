@@ -24,6 +24,7 @@ class LabMembershipInputSchema(msh.Schema):
         required=True,
         validate=msh.validate.OneOf([r.value for r in LabRole]),
     )
+    specialization = msh.fields.String(load_default=None, allow_none=True)
     compensation_type = msh.fields.String(
         load_default=None,
         allow_none=True,
@@ -39,6 +40,7 @@ class LabMembershipUpdateSchema(msh.Schema):
         required=True,
         validate=msh.validate.OneOf([r.value for r in LabRole]),
     )
+    specialization = msh.fields.String(load_default=None, allow_none=True)
     compensation_type = msh.fields.String(
         load_default=None,
         allow_none=True,

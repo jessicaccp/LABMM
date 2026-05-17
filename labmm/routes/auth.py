@@ -16,7 +16,10 @@ bp = Blueprint("auth", __name__, url_prefix="/auth")
 
 
 def _make_tokens(member: Member) -> dict:
-    additional_claims = {"is_super_admin": member.is_super_admin}
+    additional_claims = {
+        "is_super_admin": member.is_super_admin,
+        "is_professor": member.is_professor,
+    }
     access_token = create_access_token(
         identity=str(member.id), additional_claims=additional_claims
     )
@@ -29,24 +32,30 @@ def _make_tokens(member: Member) -> dict:
 @bp.post("/register")
 def register():
     """
-    Open only when no members exist (bootstrap).
-    After the first member is created, only super-admins may register new members.
+    Open to anyone. Bootstrap creates the super-admin (auto-approved).
+    Professors/admins registering via JWT create an auto-approved account.
+    Self-registration creates a pending account that must be approved by a lab professor.
     """
+    from flask_jwt_extended import verify_jwt_in_request
     is_bootstrap = Member.query.count() == 0
 
-    if not is_bootstrap:
-        # Require super-admin JWT for subsequent registrations
-        from flask_jwt_extended import verify_jwt_in_request
-        verify_jwt_in_request()
-        claims = get_jwt()
-        if not claims.get("is_super_admin"):
-            abort(403, "Only super-admins can register new members.")
+    verify_jwt_in_request(optional=True)
+    claims = get_jwt()
 
     data = request.get_json(silent=True) or {}
 
-    # Normalize email so login (which also lowercases) can always find the account
+    # Normalize email
     if "email" in data:
         data = {**data, "email": data["email"].strip().lower()}
+
+    # CPF is required — validate and normalize before schema load
+    raw_cpf = data.get("cpf") or ""
+    cpf_digits = str(raw_cpf).strip().replace(".", "").replace("-", "")
+    if not cpf_digits.isdigit() or len(cpf_digits) != 11:
+        return jsonify(errors={"cpf": ["CPF is required and must be exactly 11 digits."]}), 422
+
+    # Inject normalized CPF so the schema sees the clean value
+    data = {**data, "cpf": cpf_digits}
 
     try:
         member = member_input_schema.load(data)
@@ -56,19 +65,39 @@ def register():
     if Member.query.filter_by(email=member.email).first():
         return jsonify(error="Email already registered."), 409
 
-    password = data.get("password", "")
-    if len(password) < 8:
-        return jsonify(errors={"password": ["Password must be at least 8 characters."]}), 422
+    if Member.query.filter_by(cpf=cpf_digits).first():
+        return jsonify(error="CPF already registered."), 409
 
-    member.set_password(password)
+    member.cpf = cpf_digits
+    member.set_password(data.get("password", ""))
+
+    is_auto_approved = is_bootstrap or bool(claims.get("is_super_admin") or claims.get("is_professor"))
+    member.is_approved = is_auto_approved
+
     if is_bootstrap:
         member.is_super_admin = True
+    elif not is_auto_approved:
+        # Self-registration: store desired lab for professor routing
+        desired_lab_id = data.get("desired_lab_id")
+        if desired_lab_id:
+            from labmm.models.laboratory import Laboratory
+            lab = db.session.get(Laboratory, int(desired_lab_id))
+            if not lab:
+                return jsonify(error="Selected laboratory not found."), 404
+            member.desired_lab_id = lab.id
+
+    # Any registrant can declare professor status
+    if data.get("is_professor"):
+        member.is_professor = True
 
     db.session.add(member)
     db.session.commit()
 
-    tokens = _make_tokens(member)
-    return jsonify(member=member_schema.dump(member), **tokens), 201
+    if is_auto_approved:
+        tokens = _make_tokens(member)
+        return jsonify(member=member_schema.dump(member), **tokens), 201
+    else:
+        return jsonify(member=member_schema.dump(member)), 201
 
 
 @bp.post("/login")
@@ -81,7 +110,13 @@ def login():
     if not member or not member.check_password(password):
         abort(401, "Invalid email or password.")
 
-    return jsonify(_make_tokens(member)), 200
+    if not member.is_approved:
+        abort(403, "Your account is pending approval by your lab professor.")
+
+    if not member.is_active:
+        abort(403, "Your account has been deactivated. Please contact an administrator.")
+
+    return jsonify(member=member_schema.dump(member), **_make_tokens(member)), 200
 
 
 @bp.post("/refresh")
@@ -91,7 +126,10 @@ def refresh():
     member = db.session.get(Member, int(identity))
     if not member:
         abort(401, "Member not found.")
-    additional_claims = {"is_super_admin": member.is_super_admin}
+    additional_claims = {
+        "is_super_admin": member.is_super_admin,
+        "is_professor": member.is_professor,
+    }
     access_token = create_access_token(
         identity=identity, additional_claims=additional_claims
     )

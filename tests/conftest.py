@@ -32,10 +32,12 @@ def db_tables(app):
 # ── helpers ──────────────────────────────────────────────────────────────────
 
 def _make_member(app, first="Test", last="User", email="test@lab.local",
-                 password="password123", is_super_admin=False):
+                 password="password123", is_super_admin=False, cpf=None,
+                 is_professor=False):
     with app.app_context():
         m = Member(first_name=first, last_name=last, email=email,
-                   is_super_admin=is_super_admin)
+                   is_super_admin=is_super_admin, is_professor=is_professor,
+                   is_approved=True, cpf=cpf)
         m.set_password(password)
         _db.session.add(m)
         _db.session.commit()
@@ -47,7 +49,10 @@ def _token_headers(app, member_id):
         member = _db.session.get(Member, member_id)
         token = create_access_token(
             identity=str(member.id),
-            additional_claims={"is_super_admin": member.is_super_admin},
+            additional_claims={
+                "is_super_admin": member.is_super_admin,
+                "is_professor": member.is_professor,
+            },
         )
         return {"Authorization": f"Bearer {token}"}
 
@@ -57,7 +62,8 @@ def _token_headers(app, member_id):
 @pytest.fixture()
 def super_admin(app, db_tables):
     mid = _make_member(app, first="Admin", last="Super",
-                       email="admin@lab.local", is_super_admin=True)
+                       email="admin@lab.local", is_super_admin=True,
+                       cpf="00000000001")
     return mid
 
 
@@ -78,7 +84,7 @@ def lab(app, db_tables, super_admin):
 @pytest.fixture()
 def manager(app, db_tables, lab):
     mid = _make_member(app, first="Lab", last="Manager",
-                       email="manager@lab.local")
+                       email="manager@lab.local", cpf="00000000002")
     with app.app_context():
         membership = LabMembership(member_id=mid, lab_id=lab,
                                    role=LabRole.engineering_manager)
@@ -90,7 +96,7 @@ def manager(app, db_tables, lab):
 @pytest.fixture()
 def engineer(app, db_tables, lab):
     mid = _make_member(app, first="Lab", last="Engineer",
-                       email="engineer@lab.local")
+                       email="engineer@lab.local", cpf="00000000003")
     with app.app_context():
         membership = LabMembership(member_id=mid, lab_id=lab,
                                    role=LabRole.engineer)
@@ -102,7 +108,7 @@ def engineer(app, db_tables, lab):
 @pytest.fixture()
 def researcher(app, db_tables, lab):
     mid = _make_member(app, first="Lab", last="Researcher",
-                       email="researcher@lab.local")
+                       email="researcher@lab.local", cpf="00000000004")
     with app.app_context():
         membership = LabMembership(member_id=mid, lab_id=lab,
                                    role=LabRole.researcher)
@@ -112,9 +118,34 @@ def researcher(app, db_tables, lab):
 
 
 @pytest.fixture()
+def chief_scientist(app, db_tables, lab):
+    mid = _make_member(app, first="Lab", last="Scientist",
+                       email="scientist@lab.local", cpf="00000000005")
+    with app.app_context():
+        membership = LabMembership(member_id=mid, lab_id=lab,
+                                   role=LabRole.chief_scientist)
+        _db.session.add(membership)
+        _db.session.commit()
+    return mid
+
+
+@pytest.fixture()
+def ceo(app, db_tables, lab):
+    mid = _make_member(app, first="Lab", last="CEO",
+                       email="ceo@lab.local", cpf="00000000006",
+                       is_professor=True)
+    with app.app_context():
+        membership = LabMembership(member_id=mid, lab_id=lab,
+                                   role=LabRole.ceo)
+        _db.session.add(membership)
+        _db.session.commit()
+    return mid
+
+
+@pytest.fixture()
 def staff(app, db_tables, lab):
     mid = _make_member(app, first="Lab", last="Staff",
-                       email="staff@lab.local")
+                       email="staff@lab.local", cpf="00000000007")
     with app.app_context():
         membership = LabMembership(member_id=mid, lab_id=lab,
                                    role=LabRole.staff)
@@ -126,6 +157,16 @@ def staff(app, db_tables, lab):
 @pytest.fixture()
 def mgr_headers(app, manager):
     return _token_headers(app, manager)
+
+
+@pytest.fixture()
+def cs_headers(app, chief_scientist):
+    return _token_headers(app, chief_scientist)
+
+
+@pytest.fixture()
+def ceo_headers(app, ceo):
+    return _token_headers(app, ceo)
 
 
 @pytest.fixture()

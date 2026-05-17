@@ -2,7 +2,7 @@ from flask import Blueprint, abort, jsonify, request
 from marshmallow import ValidationError
 
 from labmm.extensions import db
-from labmm.models.lab_membership import LabRole, MANAGER_ROLES
+from labmm.models.lab_membership import LabMembership, LabRole, MANAGER_ROLES
 from labmm.models.laboratory import Laboratory
 from labmm.models.member import Member
 from labmm.models.project import Project
@@ -26,12 +26,22 @@ def list_projects(lab_id: int):
 
 
 @bp.post("/labs/<int:lab_id>/projects")
-@require_lab_role(*MANAGER_ROLES, LabRole.tech_lead, LabRole.engineer)
+@require_lab_role(*MANAGER_ROLES, LabRole.tech_lead)
 def create_project(lab_id: int):
     lab = db.session.get(Laboratory, lab_id)
     if not lab:
         abort(404, "Laboratory not found.")
     data = request.get_json(silent=True) or {}
+
+    # Validate tech_lead_id is a member of this lab (if provided)
+    tech_lead_id = data.get("tech_lead_id")
+    if tech_lead_id:
+        tech_lead_membership = LabMembership.query.filter_by(
+            member_id=tech_lead_id, lab_id=lab_id
+        ).first()
+        if not tech_lead_membership:
+            return jsonify(error="Tech Lead must be a member of this laboratory."), 422
+
     try:
         project = project_input_schema.load(data)
     except ValidationError as exc:
@@ -52,7 +62,7 @@ def get_project(lab_id: int, project_id: int):
 
 
 @bp.put("/labs/<int:lab_id>/projects/<int:project_id>")
-@require_lab_role(*MANAGER_ROLES, LabRole.tech_lead, LabRole.engineer)
+@require_lab_role(*MANAGER_ROLES, LabRole.tech_lead)
 def update_project(lab_id: int, project_id: int):
     project = Project.query.filter_by(id=project_id, lab_id=lab_id).first()
     if not project:
@@ -78,7 +88,7 @@ def delete_project(lab_id: int, project_id: int):
 
 
 @bp.post("/labs/<int:lab_id>/projects/<int:project_id>/members")
-@require_lab_role(*MANAGER_ROLES, LabRole.tech_lead, LabRole.engineer)
+@require_lab_role(*MANAGER_ROLES)
 def add_member_to_project(lab_id: int, project_id: int):
     project = Project.query.filter_by(id=project_id, lab_id=lab_id).first()
     if not project:
@@ -98,7 +108,7 @@ def add_member_to_project(lab_id: int, project_id: int):
 
 
 @bp.delete("/labs/<int:lab_id>/projects/<int:project_id>/members/<int:member_id>")
-@require_lab_role(*MANAGER_ROLES, LabRole.tech_lead, LabRole.engineer)
+@require_lab_role(*MANAGER_ROLES)
 def remove_member_from_project(lab_id: int, project_id: int, member_id: int):
     project = Project.query.filter_by(id=project_id, lab_id=lab_id).first()
     if not project:
@@ -109,3 +119,25 @@ def remove_member_from_project(lab_id: int, project_id: int, member_id: int):
     project.members.remove(member)
     db.session.commit()
     return "", 204
+
+
+@bp.post("/labs/<int:lab_id>/projects/<int:project_id>/deactivate")
+@require_lab_role(*MANAGER_ROLES, LabRole.ceo)
+def deactivate_project(lab_id: int, project_id: int):
+    project = Project.query.filter_by(id=project_id, lab_id=lab_id).first()
+    if not project:
+        abort(404, "Project not found.")
+    project.is_active = False
+    db.session.commit()
+    return jsonify(project_schema.dump(project)), 200
+
+
+@bp.post("/labs/<int:lab_id>/projects/<int:project_id>/activate")
+@require_lab_role(*MANAGER_ROLES, LabRole.ceo)
+def activate_project(lab_id: int, project_id: int):
+    project = Project.query.filter_by(id=project_id, lab_id=lab_id).first()
+    if not project:
+        abort(404, "Project not found.")
+    project.is_active = True
+    db.session.commit()
+    return jsonify(project_schema.dump(project)), 200

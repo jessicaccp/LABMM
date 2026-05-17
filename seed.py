@@ -33,6 +33,8 @@ def seed():
             last_name=last_name,
             email=email,
             is_super_admin=True,
+            is_approved=True,
+            is_active=True,
         )
         admin.set_password(password)
         db.session.add(admin)

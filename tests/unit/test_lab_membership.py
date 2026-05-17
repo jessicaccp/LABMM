@@ -4,7 +4,7 @@ from labmm.models.lab_membership import CompensationType, LabRole, MANAGER_ROLES
 
 
 def test_lab_role_has_eight_values():
-    assert len(LabRole) == 8
+    assert len(LabRole) == 9
 
 
 def test_lab_role_values():
@@ -13,10 +13,11 @@ def test_lab_role_values():
         "ceo",
         "engineering_manager",
         "project_manager",
-        "research_manager",
+        "chief_scientist",
         "tech_lead",
         "engineer",
         "researcher",
+        "research_fellow",
         "staff",
     }
 
@@ -35,14 +36,14 @@ def test_manager_roles_constant():
     assert LabRole.ceo in MANAGER_ROLES
     assert LabRole.engineering_manager in MANAGER_ROLES
     assert LabRole.project_manager in MANAGER_ROLES
-    assert LabRole.research_manager in MANAGER_ROLES
+    assert LabRole.chief_scientist in MANAGER_ROLES
     assert LabRole.engineer not in MANAGER_ROLES
     assert LabRole.staff not in MANAGER_ROLES
 
 
 def test_compensation_type_values():
     values = {c.value for c in CompensationType}
-    assert values == {"project_salary", "research_grant"}
+    assert values == {"project_salary", "research_grant", "volunteer"}
 
 
 def test_compensation_type_from_string():

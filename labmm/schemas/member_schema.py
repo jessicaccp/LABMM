@@ -1,5 +1,6 @@
 from labmm.extensions import ma
 from labmm.models.member import Member
+from marshmallow import EXCLUDE
 
 
 class MemberSchema(ma.SQLAlchemyAutoSchema):
@@ -18,10 +19,12 @@ class MemberInputSchema(ma.SQLAlchemySchema):
     class Meta:
         model = Member
         load_instance = True
+        unknown = EXCLUDE
 
     first_name = ma.auto_field(required=True)
     last_name = ma.auto_field(required=True)
     email = ma.auto_field(required=True)
+    cpf = ma.auto_field(required=True)
     password = ma.String(required=True, load_only=True)
 
 

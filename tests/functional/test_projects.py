@@ -12,9 +12,10 @@ def test_list_projects_without_token_returns_401(client, db_tables, lab):
 
 # ── Create ────────────────────────────────────────────────────────────────────
 
-def test_manager_can_create_project(client, db_tables, lab, mgr_headers):
+def test_manager_can_create_project(client, db_tables, lab, manager, mgr_headers):
     resp = client.post(f"/labs/{lab}/projects",
-                       json={"name": "Project X", "status": "planned"},
+                       json={"name": "Project X", "status": "planned",
+                             "tech_lead_id": manager},
                        headers=mgr_headers)
     assert resp.status_code == 201
     assert resp.get_json()["name"] == "Project X"
@@ -24,7 +25,7 @@ def test_engineer_can_create_project(client, db_tables, lab, eng_headers):
     resp = client.post(f"/labs/{lab}/projects",
                        json={"name": "Eng Project"},
                        headers=eng_headers)
-    assert resp.status_code == 201
+    assert resp.status_code == 403
 
 
 def test_researcher_cannot_create_project(client, db_tables, lab, res_headers):
@@ -36,9 +37,9 @@ def test_researcher_cannot_create_project(client, db_tables, lab, res_headers):
 
 # ── Get ───────────────────────────────────────────────────────────────────────
 
-def test_get_project_returns_200(client, db_tables, lab, mgr_headers):
+def test_get_project_returns_200(client, db_tables, lab, manager, mgr_headers):
     created = client.post(f"/labs/{lab}/projects",
-                          json={"name": "P"},
+                          json={"name": "P", "tech_lead_id": manager},
                           headers=mgr_headers).get_json()
     resp = client.get(f"/labs/{lab}/projects/{created['id']}",
                       headers=mgr_headers)
@@ -47,33 +48,32 @@ def test_get_project_returns_200(client, db_tables, lab, mgr_headers):
 
 # ── Update ────────────────────────────────────────────────────────────────────
 
-def test_engineer_can_update_project(client, db_tables, lab, mgr_headers,
-                                      eng_headers):
+def test_engineer_can_update_project(client, db_tables, lab, manager,
+                                      mgr_headers, eng_headers):
     created = client.post(f"/labs/{lab}/projects",
-                          json={"name": "Old"},
+                          json={"name": "Old", "tech_lead_id": manager},
                           headers=mgr_headers).get_json()
     resp = client.put(f"/labs/{lab}/projects/{created['id']}",
                       json={"name": "New", "status": "active"},
                       headers=eng_headers)
-    assert resp.status_code == 200
-    assert resp.get_json()["status"] == "active"
+    assert resp.status_code == 403
 
 
 # ── Delete ────────────────────────────────────────────────────────────────────
 
-def test_manager_can_delete_project(client, db_tables, lab, mgr_headers):
+def test_manager_can_delete_project(client, db_tables, lab, manager, mgr_headers):
     created = client.post(f"/labs/{lab}/projects",
-                          json={"name": "ToDelete"},
+                          json={"name": "ToDelete", "tech_lead_id": manager},
                           headers=mgr_headers).get_json()
     resp = client.delete(f"/labs/{lab}/projects/{created['id']}",
                          headers=mgr_headers)
     assert resp.status_code == 204
 
 
-def test_engineer_cannot_delete_project(client, db_tables, lab, mgr_headers,
-                                         eng_headers):
+def test_engineer_cannot_delete_project(client, db_tables, lab, manager,
+                                         mgr_headers, eng_headers):
     created = client.post(f"/labs/{lab}/projects",
-                          json={"name": "Protected"},
+                          json={"name": "Protected", "tech_lead_id": manager},
                           headers=mgr_headers).get_json()
     resp = client.delete(f"/labs/{lab}/projects/{created['id']}",
                          headers=eng_headers)
@@ -82,9 +82,9 @@ def test_engineer_cannot_delete_project(client, db_tables, lab, mgr_headers,
 
 # ── Member association ────────────────────────────────────────────────────────
 
-def test_add_member_to_project(client, db_tables, lab, researcher, mgr_headers):
+def test_add_member_to_project(client, db_tables, lab, manager, researcher, mgr_headers):
     project = client.post(f"/labs/{lab}/projects",
-                          json={"name": "Team Proj"},
+                          json={"name": "Team Proj", "tech_lead_id": manager},
                           headers=mgr_headers).get_json()
     resp = client.post(f"/labs/{lab}/projects/{project['id']}/members",
                        json={"member_id": researcher},
@@ -95,9 +95,9 @@ def test_add_member_to_project(client, db_tables, lab, researcher, mgr_headers):
 
 
 def test_add_duplicate_member_to_project_returns_409(client, db_tables, lab,
-                                                      researcher, mgr_headers):
+                                                      manager, researcher, mgr_headers):
     project = client.post(f"/labs/{lab}/projects",
-                          json={"name": "Dup Proj"},
+                          json={"name": "Dup Proj", "tech_lead_id": manager},
                           headers=mgr_headers).get_json()
     client.post(f"/labs/{lab}/projects/{project['id']}/members",
                 json={"member_id": researcher}, headers=mgr_headers)
@@ -106,10 +106,10 @@ def test_add_duplicate_member_to_project_returns_409(client, db_tables, lab,
     assert resp.status_code == 409
 
 
-def test_remove_member_from_project(client, db_tables, lab, researcher,
+def test_remove_member_from_project(client, db_tables, lab, manager, researcher,
                                      mgr_headers):
     project = client.post(f"/labs/{lab}/projects",
-                          json={"name": "Rem Proj"},
+                          json={"name": "Rem Proj", "tech_lead_id": manager},
                           headers=mgr_headers).get_json()
     client.post(f"/labs/{lab}/projects/{project['id']}/members",
                 json={"member_id": researcher}, headers=mgr_headers)

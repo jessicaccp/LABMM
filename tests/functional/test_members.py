@@ -15,7 +15,8 @@ def test_non_member_cannot_list_members(client, db_tables, lab, super_admin,
     # Create a member not assigned to the lab
     r = client.post("/auth/register",
                     json={"first_name": "Outsider", "last_name": "X",
-                          "email": "out@lab.local", "password": "pass"},
+                          "email": "out@lab.local", "password": "pass",
+                          "cpf": "99900000001"},
                     headers=sa_headers)
     outsider_id = r.get_json()["member"]["id"]
     from flask_jwt_extended import create_access_token
@@ -30,15 +31,16 @@ def test_non_member_cannot_list_members(client, db_tables, lab, super_admin,
 # ── Add member ────────────────────────────────────────────────────────────────
 
 def test_manager_can_add_member(client, db_tables, lab, super_admin,
-                                 sa_headers, mgr_headers):
+                                 sa_headers, ceo_headers):
     r = client.post("/auth/register",
                     json={"first_name": "New", "last_name": "Guy",
-                          "email": "new@lab.local", "password": "pass"},
+                          "email": "new@lab.local", "password": "pass",
+                          "cpf": "99900000002"},
                     headers=sa_headers)
     new_id = r.get_json()["member"]["id"]
     resp = client.post(f"/labs/{lab}/members",
                        json={"member_id": new_id, "role": "researcher"},
-                       headers=mgr_headers)
+                       headers=ceo_headers)
     assert resp.status_code == 201
     assert resp.get_json()["role"] == "researcher"
 
@@ -47,7 +49,8 @@ def test_researcher_cannot_add_member(client, db_tables, lab, super_admin,
                                        sa_headers, res_headers):
     r = client.post("/auth/register",
                     json={"first_name": "New2", "last_name": "Guy",
-                          "email": "new2@lab.local", "password": "pass"},
+                          "email": "new2@lab.local", "password": "pass",
+                          "cpf": "99900000003"},
                     headers=sa_headers)
     new_id = r.get_json()["member"]["id"]
     resp = client.post(f"/labs/{lab}/members",
@@ -56,21 +59,21 @@ def test_researcher_cannot_add_member(client, db_tables, lab, super_admin,
     assert resp.status_code == 403
 
 
-def test_add_duplicate_member_returns_409(client, db_tables, lab, manager,
-                                           mgr_headers):
+def test_add_duplicate_member_returns_409(client, db_tables, lab, ceo,
+                                           ceo_headers):
     resp = client.post(f"/labs/{lab}/members",
-                       json={"member_id": manager, "role": "engineering_manager"},
-                       headers=mgr_headers)
+                       json={"member_id": ceo, "role": "ceo"},
+                       headers=ceo_headers)
     assert resp.status_code == 409
 
 
 # ── Update role ───────────────────────────────────────────────────────────────
 
 def test_manager_can_update_member_role(client, db_tables, lab, researcher,
-                                         mgr_headers):
+                                         ceo_headers):
     resp = client.put(f"/labs/{lab}/members/{researcher}",
                       json={"role": "engineer"},
-                      headers=mgr_headers)
+                      headers=ceo_headers)
     assert resp.status_code == 200
     assert resp.get_json()["role"] == "engineer"
 
@@ -78,9 +81,9 @@ def test_manager_can_update_member_role(client, db_tables, lab, researcher,
 # ── Remove member ─────────────────────────────────────────────────────────────
 
 def test_manager_can_remove_member(client, db_tables, lab, researcher,
-                                    mgr_headers):
+                                    ceo_headers):
     resp = client.delete(f"/labs/{lab}/members/{researcher}",
-                         headers=mgr_headers)
+                         headers=ceo_headers)
     assert resp.status_code == 204
 
 

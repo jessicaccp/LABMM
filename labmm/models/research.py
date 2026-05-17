@@ -31,12 +31,19 @@ class Research(db.Model):
         nullable=False,
         index=True,
     )
+    manager_id = db.Column(
+        db.Integer,
+        db.ForeignKey("members.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     created_at = db.Column(
         db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
     )
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
 
     # Relationships
     laboratory = db.relationship("Laboratory", back_populates="research_groups")
+    manager = db.relationship("Member", foreign_keys=[manager_id])
     members = db.relationship(
         "Member", secondary="member_research", back_populates="research_groups"
     )

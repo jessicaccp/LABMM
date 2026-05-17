@@ -26,6 +26,7 @@ class Article(db.Model):
     journal = db.Column(db.String(128), nullable=True)
     doi = db.Column(db.String(128), unique=True, nullable=True)
     published_at = db.Column(db.Date, nullable=True)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
     lab_id = db.Column(
         db.Integer,
         db.ForeignKey("laboratories.id", ondelete="CASCADE"),

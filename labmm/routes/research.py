@@ -2,7 +2,7 @@ from flask import Blueprint, abort, jsonify, request
 from marshmallow import ValidationError
 
 from labmm.extensions import db
-from labmm.models.lab_membership import LabRole, MANAGER_ROLES
+from labmm.models.lab_membership import LabMembership, LabRole
 from labmm.models.laboratory import Laboratory
 from labmm.models.member import Member
 from labmm.models.research import Research
@@ -26,12 +26,22 @@ def list_research(lab_id: int):
 
 
 @bp.post("/labs/<int:lab_id>/research")
-@require_lab_role(*MANAGER_ROLES)
+@require_lab_role(LabRole.chief_scientist, LabRole.ceo)
 def create_research(lab_id: int):
     lab = db.session.get(Laboratory, lab_id)
     if not lab:
         abort(404, "Laboratory not found.")
     data = request.get_json(silent=True) or {}
+
+    # Validate manager_id belongs to the lab if provided
+    manager_id = data.get("manager_id")
+    if manager_id is not None:
+        mgr_membership = LabMembership.query.filter_by(
+            member_id=manager_id, lab_id=lab_id
+        ).first()
+        if not mgr_membership:
+            return jsonify(error="Research manager must be a member of this laboratory."), 422
+
     try:
         group = research_input_schema.load(data)
     except ValidationError as exc:
@@ -52,12 +62,22 @@ def get_research(lab_id: int, research_id: int):
 
 
 @bp.put("/labs/<int:lab_id>/research/<int:research_id>")
-@require_lab_role(*MANAGER_ROLES)
+@require_lab_role(LabRole.chief_scientist, LabRole.ceo)
 def update_research(lab_id: int, research_id: int):
     group = Research.query.filter_by(id=research_id, lab_id=lab_id).first()
     if not group:
         abort(404, "Research group not found.")
     data = request.get_json(silent=True) or {}
+
+    # Validate manager_id belongs to the lab if provided
+    manager_id = data.get("manager_id")
+    if manager_id is not None:
+        mgr_membership = LabMembership.query.filter_by(
+            member_id=manager_id, lab_id=lab_id
+        ).first()
+        if not mgr_membership:
+            return jsonify(error="Research manager must be a member of this laboratory."), 422
+
     try:
         group = research_input_schema.load(data, instance=group, partial=True)
     except ValidationError as exc:
@@ -67,7 +87,7 @@ def update_research(lab_id: int, research_id: int):
 
 
 @bp.delete("/labs/<int:lab_id>/research/<int:research_id>")
-@require_lab_role(*MANAGER_ROLES)
+@require_lab_role(LabRole.chief_scientist, LabRole.ceo)
 def delete_research(lab_id: int, research_id: int):
     group = Research.query.filter_by(id=research_id, lab_id=lab_id).first()
     if not group:
@@ -78,7 +98,7 @@ def delete_research(lab_id: int, research_id: int):
 
 
 @bp.post("/labs/<int:lab_id>/research/<int:research_id>/members")
-@require_lab_role(*MANAGER_ROLES)
+@require_lab_role(LabRole.chief_scientist, LabRole.ceo)
 def add_member_to_research(lab_id: int, research_id: int):
     group = Research.query.filter_by(id=research_id, lab_id=lab_id).first()
     if not group:
@@ -98,7 +118,7 @@ def add_member_to_research(lab_id: int, research_id: int):
 
 
 @bp.delete("/labs/<int:lab_id>/research/<int:research_id>/members/<int:member_id>")
-@require_lab_role(*MANAGER_ROLES)
+@require_lab_role(LabRole.chief_scientist, LabRole.ceo)
 def remove_member_from_research(lab_id: int, research_id: int, member_id: int):
     group = Research.query.filter_by(id=research_id, lab_id=lab_id).first()
     if not group:
@@ -109,3 +129,25 @@ def remove_member_from_research(lab_id: int, research_id: int, member_id: int):
     group.members.remove(member)
     db.session.commit()
     return "", 204
+
+
+@bp.post("/labs/<int:lab_id>/research/<int:research_id>/deactivate")
+@require_lab_role(LabRole.chief_scientist, LabRole.ceo)
+def deactivate_research(lab_id: int, research_id: int):
+    group = Research.query.filter_by(id=research_id, lab_id=lab_id).first()
+    if not group:
+        abort(404, "Research group not found.")
+    group.is_active = False
+    db.session.commit()
+    return jsonify(research_schema.dump(group)), 200
+
+
+@bp.post("/labs/<int:lab_id>/research/<int:research_id>/activate")
+@require_lab_role(LabRole.chief_scientist, LabRole.ceo)
+def activate_research(lab_id: int, research_id: int):
+    group = Research.query.filter_by(id=research_id, lab_id=lab_id).first()
+    if not group:
+        abort(404, "Research group not found.")
+    group.is_active = True
+    db.session.commit()
+    return jsonify(research_schema.dump(group)), 200

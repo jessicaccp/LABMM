@@ -12,13 +12,25 @@ class Member(db.Model):
     first_name = db.Column(db.String(64), nullable=False)
     last_name = db.Column(db.String(64), nullable=False)
     email = db.Column(db.String(128), unique=True, nullable=False, index=True)
+    cpf = db.Column(db.String(11), unique=True, nullable=True, index=True)
     password_hash = db.Column(db.String(256), nullable=False)
     is_super_admin = db.Column(db.Boolean, default=False, nullable=False)
+    is_professor = db.Column(db.Boolean, default=False, nullable=False)
+    is_approved = db.Column(db.Boolean, default=False, nullable=False)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    desired_lab_id = db.Column(
+        db.Integer,
+        db.ForeignKey("laboratories.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     created_at = db.Column(
         db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
     )
 
     # Relationships
+    desired_lab = db.relationship(
+        "Laboratory", foreign_keys=[desired_lab_id], backref=db.backref("pending_members", lazy="dynamic")
+    )
     lab_memberships = db.relationship(
         "LabMembership", back_populates="member", cascade="all, delete-orphan"
     )

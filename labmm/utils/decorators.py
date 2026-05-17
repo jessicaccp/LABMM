@@ -18,6 +18,18 @@ def require_super_admin(fn):
     return wrapper
 
 
+def require_professor_or_super_admin(fn):
+    """Allow professors and super-admins (for lab creation)."""
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        verify_jwt_in_request()
+        claims = get_jwt()
+        if not (claims.get("is_super_admin") or claims.get("is_professor")):
+            abort(403, "Professor or super-admin access required.")
+        return fn(*args, **kwargs)
+    return wrapper
+
+
 def require_lab_role(*allowed_roles: LabRole):
     """
     Allow access if the authenticated member has one of the given roles
