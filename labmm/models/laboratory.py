@@ -27,6 +27,9 @@ class Laboratory(db.Model):
     articles = db.relationship(
         "Article", back_populates="laboratory", cascade="all, delete-orphan"
     )
+    inventory_items = db.relationship(
+        "InventoryItem", back_populates="laboratory", cascade="all, delete-orphan"
+    )
 
     def __repr__(self) -> str:
         return f"<Laboratory {self.name}>"

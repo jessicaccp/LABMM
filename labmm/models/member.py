@@ -37,9 +37,6 @@ class Member(db.Model):
         back_populates="member",
         cascade="all, delete-orphan",
     )
-    authored_articles = db.relationship(
-        "Article", secondary="article_authors", back_populates="authors"
-    )
     research_groups = db.relationship(
         "Research", secondary="member_research", back_populates="members"
     )
