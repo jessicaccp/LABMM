@@ -10,7 +10,7 @@ def test_lab_role_has_eight_values():
 def test_lab_role_values():
     values = {r.value for r in LabRole}
     assert values == {
-        "ceo",
+        "lab_coordinator",
         "engineering_manager",
         "project_manager",
         "chief_scientist",
@@ -33,7 +33,7 @@ def test_lab_role_invalid_raises():
 
 
 def test_manager_roles_constant():
-    assert LabRole.ceo in MANAGER_ROLES
+    assert LabRole.lab_coordinator in MANAGER_ROLES
     assert LabRole.engineering_manager in MANAGER_ROLES
     assert LabRole.project_manager in MANAGER_ROLES
     assert LabRole.chief_scientist in MANAGER_ROLES

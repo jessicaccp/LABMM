@@ -122,7 +122,7 @@ def remove_member_from_project(lab_id: int, project_id: int, member_id: int):
 
 
 @bp.post("/labs/<int:lab_id>/projects/<int:project_id>/deactivate")
-@require_lab_role(*MANAGER_ROLES, LabRole.ceo)
+@require_lab_role(*MANAGER_ROLES, LabRole.lab_coordinator)
 def deactivate_project(lab_id: int, project_id: int):
     project = Project.query.filter_by(id=project_id, lab_id=lab_id).first()
     if not project:
@@ -133,7 +133,7 @@ def deactivate_project(lab_id: int, project_id: int):
 
 
 @bp.post("/labs/<int:lab_id>/projects/<int:project_id>/activate")
-@require_lab_role(*MANAGER_ROLES, LabRole.ceo)
+@require_lab_role(*MANAGER_ROLES, LabRole.lab_coordinator)
 def activate_project(lab_id: int, project_id: int):
     project = Project.query.filter_by(id=project_id, lab_id=lab_id).first()
     if not project:

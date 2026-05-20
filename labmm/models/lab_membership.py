@@ -5,7 +5,7 @@ from labmm.extensions import db
 
 
 class LabRole(str, enum.Enum):
-    ceo = "ceo"                               # Professor responsible for the lab
+    lab_coordinator = "lab_coordinator"        # Professor responsible for the lab
     engineering_manager = "engineering_manager"
     project_manager = "project_manager"
     chief_scientist = "chief_scientist"        # Renamed from research_manager
@@ -18,7 +18,7 @@ class LabRole(str, enum.Enum):
 
 # Roles that can manage lab membership
 MANAGER_ROLES = frozenset({
-    LabRole.ceo,
+    LabRole.lab_coordinator,
     LabRole.engineering_manager,
     LabRole.project_manager,
     LabRole.chief_scientist,
@@ -26,7 +26,7 @@ MANAGER_ROLES = frozenset({
 
 # Hierarchy level — lower number = more authority
 ROLE_LEVEL: dict[LabRole, int] = {
-    LabRole.ceo: 0,
+    LabRole.lab_coordinator: 0,
     LabRole.engineering_manager: 1,
     LabRole.project_manager: 1,
     LabRole.chief_scientist: 1,

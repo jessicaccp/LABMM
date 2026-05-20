@@ -42,7 +42,7 @@ def get_article(lab_id: int, article_id: int):
 
 
 @bp.post("/labs/<int:lab_id>/articles")
-@require_lab_role(LabRole.ceo, LabRole.chief_scientist, LabRole.researcher, LabRole.research_fellow)
+@require_lab_role(LabRole.lab_coordinator, LabRole.chief_scientist, LabRole.researcher, LabRole.research_fellow)
 def create_article(lab_id: int):
     lab = db.session.get(Laboratory, lab_id)
     if not lab:
@@ -59,7 +59,7 @@ def create_article(lab_id: int):
 
 
 @bp.put("/labs/<int:lab_id>/articles/<int:article_id>")
-@require_lab_role(LabRole.ceo, LabRole.chief_scientist, LabRole.researcher, LabRole.research_fellow)
+@require_lab_role(LabRole.lab_coordinator, LabRole.chief_scientist, LabRole.researcher, LabRole.research_fellow)
 def update_article(lab_id: int, article_id: int):
     article = Article.query.filter_by(id=article_id, lab_id=lab_id).first()
     if not article:
@@ -74,7 +74,7 @@ def update_article(lab_id: int, article_id: int):
 
 
 @bp.delete("/labs/<int:lab_id>/articles/<int:article_id>")
-@require_lab_role(LabRole.ceo, LabRole.chief_scientist)
+@require_lab_role(LabRole.lab_coordinator, LabRole.chief_scientist)
 def delete_article(lab_id: int, article_id: int):
     article = Article.query.filter_by(id=article_id, lab_id=lab_id).first()
     if not article:
@@ -85,7 +85,7 @@ def delete_article(lab_id: int, article_id: int):
 
 
 @bp.post("/labs/<int:lab_id>/articles/<int:article_id>/deactivate")
-@require_lab_role(LabRole.ceo, LabRole.chief_scientist)
+@require_lab_role(LabRole.lab_coordinator, LabRole.chief_scientist)
 def deactivate_article(lab_id: int, article_id: int):
     article = Article.query.filter_by(id=article_id, lab_id=lab_id).first()
     if not article:
@@ -96,7 +96,7 @@ def deactivate_article(lab_id: int, article_id: int):
 
 
 @bp.post("/labs/<int:lab_id>/articles/<int:article_id>/activate")
-@require_lab_role(LabRole.ceo, LabRole.chief_scientist)
+@require_lab_role(LabRole.lab_coordinator, LabRole.chief_scientist)
 def activate_article(lab_id: int, article_id: int):
     article = Article.query.filter_by(id=article_id, lab_id=lab_id).first()
     if not article:

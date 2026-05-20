@@ -26,7 +26,7 @@ def list_research(lab_id: int):
 
 
 @bp.post("/labs/<int:lab_id>/research")
-@require_lab_role(LabRole.chief_scientist, LabRole.ceo)
+@require_lab_role(LabRole.chief_scientist, LabRole.lab_coordinator)
 def create_research(lab_id: int):
     lab = db.session.get(Laboratory, lab_id)
     if not lab:
@@ -62,7 +62,7 @@ def get_research(lab_id: int, research_id: int):
 
 
 @bp.put("/labs/<int:lab_id>/research/<int:research_id>")
-@require_lab_role(LabRole.chief_scientist, LabRole.ceo)
+@require_lab_role(LabRole.chief_scientist, LabRole.lab_coordinator)
 def update_research(lab_id: int, research_id: int):
     group = Research.query.filter_by(id=research_id, lab_id=lab_id).first()
     if not group:
@@ -87,7 +87,7 @@ def update_research(lab_id: int, research_id: int):
 
 
 @bp.delete("/labs/<int:lab_id>/research/<int:research_id>")
-@require_lab_role(LabRole.chief_scientist, LabRole.ceo)
+@require_lab_role(LabRole.chief_scientist, LabRole.lab_coordinator)
 def delete_research(lab_id: int, research_id: int):
     group = Research.query.filter_by(id=research_id, lab_id=lab_id).first()
     if not group:
@@ -98,7 +98,7 @@ def delete_research(lab_id: int, research_id: int):
 
 
 @bp.post("/labs/<int:lab_id>/research/<int:research_id>/members")
-@require_lab_role(LabRole.chief_scientist, LabRole.ceo)
+@require_lab_role(LabRole.chief_scientist, LabRole.lab_coordinator)
 def add_member_to_research(lab_id: int, research_id: int):
     group = Research.query.filter_by(id=research_id, lab_id=lab_id).first()
     if not group:
@@ -118,7 +118,7 @@ def add_member_to_research(lab_id: int, research_id: int):
 
 
 @bp.delete("/labs/<int:lab_id>/research/<int:research_id>/members/<int:member_id>")
-@require_lab_role(LabRole.chief_scientist, LabRole.ceo)
+@require_lab_role(LabRole.chief_scientist, LabRole.lab_coordinator)
 def remove_member_from_research(lab_id: int, research_id: int, member_id: int):
     group = Research.query.filter_by(id=research_id, lab_id=lab_id).first()
     if not group:
@@ -132,7 +132,7 @@ def remove_member_from_research(lab_id: int, research_id: int, member_id: int):
 
 
 @bp.post("/labs/<int:lab_id>/research/<int:research_id>/deactivate")
-@require_lab_role(LabRole.chief_scientist, LabRole.ceo)
+@require_lab_role(LabRole.chief_scientist, LabRole.lab_coordinator)
 def deactivate_research(lab_id: int, research_id: int):
     group = Research.query.filter_by(id=research_id, lab_id=lab_id).first()
     if not group:
@@ -143,7 +143,7 @@ def deactivate_research(lab_id: int, research_id: int):
 
 
 @bp.post("/labs/<int:lab_id>/research/<int:research_id>/activate")
-@require_lab_role(LabRole.chief_scientist, LabRole.ceo)
+@require_lab_role(LabRole.chief_scientist, LabRole.lab_coordinator)
 def activate_research(lab_id: int, research_id: int):
     group = Research.query.filter_by(id=research_id, lab_id=lab_id).first()
     if not group:

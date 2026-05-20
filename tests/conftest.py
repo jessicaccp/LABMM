@@ -131,12 +131,12 @@ def chief_scientist(app, db_tables, lab):
 
 @pytest.fixture()
 def ceo(app, db_tables, lab):
-    mid = _make_member(app, first="Lab", last="CEO",
-                       email="ceo@lab.local", cpf="00000000006",
+    mid = _make_member(app, first="Lab", last="Coordinator",
+                       email="coordinator@lab.local", cpf="00000000006",
                        is_professor=True)
     with app.app_context():
         membership = LabMembership(member_id=mid, lab_id=lab,
-                                   role=LabRole.ceo)
+                                   role=LabRole.lab_coordinator)
         _db.session.add(membership)
         _db.session.commit()
     return mid

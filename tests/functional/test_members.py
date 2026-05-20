@@ -62,7 +62,7 @@ def test_researcher_cannot_add_member(client, db_tables, lab, super_admin,
 def test_add_duplicate_member_returns_409(client, db_tables, lab, ceo,
                                            ceo_headers):
     resp = client.post(f"/labs/{lab}/members",
-                       json={"member_id": ceo, "role": "ceo"},
+                       json={"member_id": ceo, "role": "lab_coordinator"},
                        headers=ceo_headers)
     assert resp.status_code == 409
 

@@ -36,18 +36,18 @@ bp = Blueprint("members", __name__)
 @bp.get("/members/<int:member_id>")
 @jwt_required()
 def get_member_detail(member_id: int):
-    """Super-admin or CEO: return a single member with full lab_memberships."""
+    """Super-admin or Lab Coordinator: return a single member with full lab_memberships."""
     claims = get_jwt()
     current_id = get_jwt_identity()
 
     if not claims.get("is_super_admin"):
-        # CEOs may access members that belong to one of their labs
+        # Lab Coordinators may access members that belong to one of their labs
         ceo_lab_ids = [
             m.lab_id for m in LabMembership.query.filter_by(member_id=current_id).all()
-            if LabRole.ceo in (m.roles or [])
+            if LabRole.lab_coordinator in (m.roles or [])
         ]
         if not ceo_lab_ids:
-            abort(403, "Super-admin or CEO access required.")
+            abort(403, "Super-admin or Lab Coordinator access required.")
         in_lab = LabMembership.query.filter(
             LabMembership.member_id == member_id,
             LabMembership.lab_id.in_(ceo_lab_ids)
@@ -64,7 +64,7 @@ def get_member_detail(member_id: int):
 @bp.get("/members")
 @jwt_required()
 def list_all_members():
-    """Super-admin or CEO: list members (CEOs see only their labs' members)."""
+    """Super-admin or Lab Coordinator: list members (Lab Coordinators see only their labs' members)."""
     claims = get_jwt()
     current_id = get_jwt_identity()
 
@@ -72,10 +72,10 @@ def list_all_members():
         members = Member.query.order_by(Member.last_name, Member.first_name).all()
         return jsonify(members_schema.dump(members)), 200
 
-    # Allow CEOs to list members of labs they lead
+    # Allow Lab Coordinators to list members of labs they lead
     ceo_lab_ids = [
         m.lab_id for m in LabMembership.query.filter_by(member_id=current_id).all()
-        if LabRole.ceo in (m.roles or [])
+        if LabRole.lab_coordinator in (m.roles or [])
     ]
     if not ceo_lab_ids:
         abort(403, "Access denied.")
@@ -206,11 +206,11 @@ def update_member_role(lab_id: int, member_id: int):
         target_level = _primary_role_level(membership)
 
         if is_self:
-            # Self-demotion: only a CEO may step down, and cannot reassign CEO to themselves
+            # Self-demotion: only a Lab Coordinator may step down, and cannot reassign Lab Coordinator to themselves
             if target_level != 0:
                 abort(403, "You cannot change your own role.")
             if min_new_level == 0:
-                abort(403, "You cannot keep the CEO role via self-demotion.")
+                abort(403, "You cannot keep the Lab Coordinator role via self-demotion.")
         else:
             if requester_level >= target_level:
                 abort(403, "You can only manage members below your role level.")
@@ -229,7 +229,7 @@ def update_member_role(lab_id: int, member_id: int):
     if "reports_to_id" in data:
         if not claims.get("is_super_admin"):
             if _primary_role_level(requester_ms) != 0:
-                abort(403, "Only the CEO or a super admin can set the reporting structure.")
+                abort(403, "Only the Lab Coordinator or a super admin can set the reporting structure.")
         rid = payload.get("reports_to_id")
         if rid is not None:
             if not LabMembership.query.filter_by(member_id=rid, lab_id=lab_id).first():
@@ -317,7 +317,7 @@ def lookup_member():
 @bp.get("/members/pending")
 @jwt_required()
 def list_pending_members():
-    """Return all unapproved members. Professors see only their CEO labs' pending members."""
+    """Return all unapproved members. Professors see only their Lab Coordinator labs' pending members."""
     claims = get_jwt()
     if claims.get("is_super_admin"):
         pending = Member.query.filter_by(is_approved=False).all()
@@ -325,7 +325,7 @@ def list_pending_members():
         member_id = int(get_jwt_identity())
         ceo_lab_ids = [
             m.lab_id for m in LabMembership.query.filter_by(member_id=member_id).all()
-            if LabRole.ceo in (m.roles or [])
+            if LabRole.lab_coordinator in (m.roles or [])
         ]
         pending = Member.query.filter(
             Member.is_approved == False,  # noqa: E712
@@ -339,7 +339,7 @@ def list_pending_members():
 @bp.post("/members/<int:member_id>/approve")
 @jwt_required()
 def approve_member(member_id: int):
-    """Approve a pending member. Professors may only approve members for their CEO labs."""
+    """Approve a pending member. Professors may only approve members for their Lab Coordinator labs."""
     claims = get_jwt()
     is_super_admin = claims.get("is_super_admin")
     is_professor = claims.get("is_professor")
@@ -353,11 +353,11 @@ def approve_member(member_id: int):
         return jsonify(member_schema.dump(member)), 200
 
     if not is_super_admin:
-        # Professors may only approve members assigned to their CEO labs
+        # Professors may only approve members assigned to their Lab Coordinator labs
         caller_id = int(get_jwt_identity())
         ceo_lab_ids = [
             m.lab_id for m in LabMembership.query.filter_by(member_id=caller_id).all()
-            if LabRole.ceo in (m.roles or [])
+            if LabRole.lab_coordinator in (m.roles or [])
         ]
         if member.desired_lab_id not in ceo_lab_ids:
             abort(403, "You can only approve members who requested access to your laboratory.")

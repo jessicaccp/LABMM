@@ -15,7 +15,7 @@ from labmm.utils.decorators import require_lab_role, require_lab_member
 bp = Blueprint("inventory", __name__)
 
 _MANAGER_ROLES = (
-    LabRole.ceo,
+    LabRole.lab_coordinator,
     LabRole.engineering_manager,
     LabRole.project_manager,
     LabRole.chief_scientist,

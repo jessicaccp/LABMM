@@ -49,7 +49,7 @@ def create_lab():
     db.session.add(lab)
     db.session.flush()  # get lab.id before commit
 
-    # Auto-add the creator as CEO — but skip for super-admins,
+    # Auto-add the creator as Lab Coordinator — but skip for super-admins,
     # who are above all lab roles and manage labs without a membership.
     claims = get_jwt()
     if not claims.get("is_super_admin"):
@@ -57,7 +57,7 @@ def create_lab():
         membership = LabMembership(
             member_id=creator_id,
             lab_id=lab.id,
-            roles=[LabRole.ceo],
+            roles=[LabRole.lab_coordinator],
         )
         db.session.add(membership)
 
