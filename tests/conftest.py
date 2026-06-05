@@ -3,9 +3,10 @@ from flask_jwt_extended import create_access_token
 
 from labmm import create_app
 from labmm.extensions import db as _db
-from labmm.models.lab_membership import LabMembership, LabRole
+from labmm.models.lab_membership import LabMembership, LabRole, ROLE_LEVEL
 from labmm.models.laboratory import Laboratory
 from labmm.models.member import Member
+from labmm.models.role import Role
 
 
 @pytest.fixture(scope="session")
@@ -24,6 +25,10 @@ def db_tables(app):
     """Create all tables before each test and drop them after."""
     with app.app_context():
         _db.create_all()
+        for role_key, level in ROLE_LEVEL.items():
+            if not Role.query.filter_by(key=role_key.value).first():
+                _db.session.add(Role(key=role_key.value, name=role_key.value, level=level, is_system=True))
+        _db.session.commit()
         yield _db
         _db.session.remove()
         _db.drop_all()
@@ -87,7 +92,7 @@ def manager(app, db_tables, lab):
                        email="manager@lab.local", cpf="00000000002")
     with app.app_context():
         membership = LabMembership(member_id=mid, lab_id=lab,
-                                   role=LabRole.engineering_manager)
+                                   roles=[LabRole.engineering_manager])
         _db.session.add(membership)
         _db.session.commit()
     return mid
@@ -99,7 +104,7 @@ def engineer(app, db_tables, lab):
                        email="engineer@lab.local", cpf="00000000003")
     with app.app_context():
         membership = LabMembership(member_id=mid, lab_id=lab,
-                                   role=LabRole.engineer)
+                                   roles=[LabRole.engineer])
         _db.session.add(membership)
         _db.session.commit()
     return mid
@@ -111,7 +116,7 @@ def researcher(app, db_tables, lab):
                        email="researcher@lab.local", cpf="00000000004")
     with app.app_context():
         membership = LabMembership(member_id=mid, lab_id=lab,
-                                   role=LabRole.researcher)
+                                   roles=[LabRole.researcher])
         _db.session.add(membership)
         _db.session.commit()
     return mid
@@ -123,7 +128,7 @@ def chief_scientist(app, db_tables, lab):
                        email="scientist@lab.local", cpf="00000000005")
     with app.app_context():
         membership = LabMembership(member_id=mid, lab_id=lab,
-                                   role=LabRole.chief_scientist)
+                                   roles=[LabRole.chief_scientist])
         _db.session.add(membership)
         _db.session.commit()
     return mid
@@ -136,7 +141,7 @@ def ceo(app, db_tables, lab):
                        is_professor=True)
     with app.app_context():
         membership = LabMembership(member_id=mid, lab_id=lab,
-                                   role=LabRole.lab_coordinator)
+                                   roles=[LabRole.lab_coordinator])
         _db.session.add(membership)
         _db.session.commit()
     return mid
@@ -148,7 +153,7 @@ def staff(app, db_tables, lab):
                        email="staff@lab.local", cpf="00000000007")
     with app.app_context():
         membership = LabMembership(member_id=mid, lab_id=lab,
-                                   role=LabRole.staff)
+                                   roles=[LabRole.staff])
         _db.session.add(membership)
         _db.session.commit()
     return mid

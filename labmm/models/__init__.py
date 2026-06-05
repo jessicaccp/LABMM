@@ -1,4 +1,4 @@
-from labmm.models.article import Article, ArticleStatus  # noqa: F401
+from labmm.models.article import Article, ArticleStatus, article_authors  # noqa: F401
 from labmm.models.inventory import InventoryItem, ItemCondition  # noqa: F401
 from labmm.models.lab_membership import LabMembership, LabRole  # noqa: F401
 from labmm.models.laboratory import Laboratory  # noqa: F401

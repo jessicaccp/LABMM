@@ -72,7 +72,7 @@ def test_cascade_delete_lab_removes_memberships(app, db_tables):
         db.session.add(member)
         db.session.commit()
         membership = LabMembership(member_id=member.id, lab_id=lab.id,
-                                   role=LabRole.staff)
+                                   roles=[LabRole.staff])
         db.session.add(membership)
         db.session.commit()
         lab_id = lab.id

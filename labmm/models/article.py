@@ -3,6 +3,12 @@ from datetime import datetime, timezone
 
 from labmm.extensions import db
 
+article_authors = db.Table(
+    "article_authors",
+    db.Column("member_id", db.Integer, db.ForeignKey("members.id", ondelete="CASCADE"), primary_key=True),
+    db.Column("article_id", db.Integer, db.ForeignKey("articles.id", ondelete="CASCADE"), primary_key=True),
+)
+
 
 class ArticleStatus(str, enum.Enum):
     in_progress = "in_progress"
@@ -27,7 +33,6 @@ class Article(db.Model):
     )
     submission_deadline = db.Column(db.Date, nullable=True)
     published_at = db.Column(db.Date, nullable=True)
-    authors = db.Column(db.JSON, nullable=False, default=list)       # list of free-text names
     in_charge = db.Column(db.JSON, nullable=False, default=list)     # list of free-text names
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     lab_id = db.Column(
@@ -42,6 +47,7 @@ class Article(db.Model):
 
     # Relationships
     laboratory = db.relationship("Laboratory", back_populates="articles")
+    authors = db.relationship("Member", secondary=article_authors, backref="authored_articles")
 
     def __repr__(self) -> str:
         return f"<Article {self.title}>"
