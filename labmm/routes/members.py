@@ -145,6 +145,13 @@ def add_member(lab_id: int):
         if _primary_role_level(requester_ms) >= min_new_level:
             abort(403, "You can only assign roles below your own level.")
 
+    rid = payload.get("reports_to_id")
+    if rid is not None:
+        if not LabMembership.query.filter_by(member_id=rid, lab_id=lab_id).first():
+            abort(422, "reports_to_id must refer to a member of this laboratory.")
+        if rid == payload["member_id"]:
+            abort(422, "Member cannot report to themselves.")
+
     ct = payload.get("compensation_type")
     membership = LabMembership(
         member_id=member.id,
@@ -153,6 +160,7 @@ def add_member(lab_id: int):
         specialization=payload.get("specialization"),
         compensation_type=CompensationType(ct) if ct else None,
         compensation_value=payload.get("compensation_value"),
+        reports_to_id=rid,
     )
     db.session.add(membership)
     db.session.commit()
