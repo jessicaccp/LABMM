@@ -5,6 +5,7 @@ from labmm.extensions import db
 from labmm.models.article import Article, ArticleStatus
 from labmm.models.lab_membership import LabRole
 from labmm.models.laboratory import Laboratory
+from labmm.models.member import Member
 from labmm.schemas.article_schema import (
     article_input_schema,
     article_schema,
@@ -104,3 +105,35 @@ def activate_article(lab_id: int, article_id: int):
     article.is_active = True
     db.session.commit()
     return jsonify(article_schema.dump(article)), 200
+
+
+@bp.post("/labs/<int:lab_id>/articles/<int:article_id>/authors")
+@require_lab_role(LabRole.lab_coordinator, LabRole.chief_scientist, LabRole.researcher)
+def add_author(lab_id: int, article_id: int):
+    article = Article.query.filter_by(id=article_id, lab_id=lab_id).first()
+    if not article:
+        abort(404, "Article not found.")
+    data = request.get_json(silent=True) or {}
+    member_id = data.get("member_id")
+    member = db.session.get(Member, member_id)
+    if not member:
+        abort(404, "Member not found.")
+    if member in article.authors:
+        return jsonify(error="Member already in this article."), 409
+    article.authors.append(member)
+    db.session.commit()
+        
+    return jsonify(article_schema.dump(article)), 200
+
+
+@bp.delete("/labs/<int:lab_id>/articles/<int:article_id>/authors/<int:member_id>")
+@require_lab_role(LabRole.lab_coordinator, LabRole.chief_scientist, LabRole.researcher)
+def remove_author(lab_id: int, article_id: int, member_id: int):
+    article = Article.query.filter_by(id=article_id, lab_id=lab_id).first()
+    if not article:
+        abort(404, "Article not found.")
+    member = db.session.get(Member, member_id)
+    if member in article.authors:
+        article.authors.remove(member)
+        db.session.commit()
+    return "", 204

@@ -39,10 +39,10 @@ def test_manager_can_add_member(client, db_tables, lab, super_admin,
                     headers=sa_headers)
     new_id = r.get_json()["member"]["id"]
     resp = client.post(f"/labs/{lab}/members",
-                       json={"member_id": new_id, "role": "researcher"},
+                       json={"member_id": new_id, "roles": ["researcher"]},
                        headers=ceo_headers)
     assert resp.status_code == 201
-    assert resp.get_json()["role"] == "researcher"
+    assert "researcher" in resp.get_json()["roles"]
 
 
 def test_researcher_cannot_add_member(client, db_tables, lab, super_admin,
@@ -54,7 +54,7 @@ def test_researcher_cannot_add_member(client, db_tables, lab, super_admin,
                     headers=sa_headers)
     new_id = r.get_json()["member"]["id"]
     resp = client.post(f"/labs/{lab}/members",
-                       json={"member_id": new_id, "role": "staff"},
+                       json={"member_id": new_id, "roles": ["staff"]},
                        headers=res_headers)
     assert resp.status_code == 403
 
@@ -62,7 +62,7 @@ def test_researcher_cannot_add_member(client, db_tables, lab, super_admin,
 def test_add_duplicate_member_returns_409(client, db_tables, lab, ceo,
                                            ceo_headers):
     resp = client.post(f"/labs/{lab}/members",
-                       json={"member_id": ceo, "role": "lab_coordinator"},
+                       json={"member_id": ceo, "roles": ["lab_coordinator"]},
                        headers=ceo_headers)
     assert resp.status_code == 409
 
@@ -72,10 +72,10 @@ def test_add_duplicate_member_returns_409(client, db_tables, lab, ceo,
 def test_manager_can_update_member_role(client, db_tables, lab, researcher,
                                          ceo_headers):
     resp = client.put(f"/labs/{lab}/members/{researcher}",
-                      json={"role": "engineer"},
+                      json={"roles": ["engineer"]},
                       headers=ceo_headers)
     assert resp.status_code == 200
-    assert resp.get_json()["role"] == "engineer"
+    assert "engineer" in resp.get_json()["roles"]
 
 
 # ── Remove member ─────────────────────────────────────────────────────────────

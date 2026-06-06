@@ -24,7 +24,7 @@ def test_get_nonexistent_article_returns_404(client, db_tables, lab):
 
 def test_researcher_can_create_article(client, db_tables, lab, res_headers):
     resp = client.post(f"/labs/{lab}/articles",
-                       json={"title": "Researcher Paper", "journal": "Nature"},
+                       json={"title": "Researcher Paper", "conference": "Nature"},
                        headers=res_headers)
     assert resp.status_code == 201
     assert resp.get_json()["title"] == "Researcher Paper"

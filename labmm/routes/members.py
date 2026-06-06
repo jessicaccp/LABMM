@@ -103,7 +103,7 @@ def list_members(lab_id: int):
 
 
 @bp.post("/labs/<int:lab_id>/members")
-@require_lab_member
+@require_lab_role(*MANAGER_ROLES)
 def add_member(lab_id: int):
     claims = get_jwt()
     requester_id = int(get_jwt_identity())
@@ -127,14 +127,6 @@ def add_member(lab_id: int):
         role_defs.append(rd)
     min_new_level = min(rd.level for rd in role_defs)
 
-    # Hierarchy check: super-admins bypass; others can only assign roles below their own level
-    if not claims.get("is_super_admin"):
-        requester_ms = LabMembership.query.filter_by(
-            member_id=requester_id, lab_id=lab_id
-        ).first()
-        if _primary_role_level(requester_ms) >= min_new_level:
-            abort(403, "You can only assign roles below your own level.")
-
     member = db.session.get(Member, payload["member_id"])
     if not member:
         abort(404, "Member not found.")
@@ -144,6 +136,14 @@ def add_member(lab_id: int):
     ).first()
     if existing:
         return jsonify(error="Member already belongs to this laboratory."), 409
+    
+    # Hierarchy check: super-admins bypass; others can only assign roles below their own level
+    if not claims.get("is_super_admin"):
+        requester_ms = LabMembership.query.filter_by(
+            member_id=requester_id, lab_id=lab_id
+        ).first()
+        if _primary_role_level(requester_ms) >= min_new_level:
+            abort(403, "You can only assign roles below your own level.")
 
     ct = payload.get("compensation_type")
     membership = LabMembership(

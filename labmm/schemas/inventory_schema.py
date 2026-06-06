@@ -28,10 +28,11 @@ class InventoryItemInputSchema(ma.SQLAlchemySchema):
     category = ma.auto_field(required=True)
     description = ma.auto_field()
     serial_number = ma.auto_field()
-    quantity = ma.auto_field(load_default=1)
+    quantity = ma.auto_field(load_default=1, required=False)
     condition = ma.auto_field(
         validate=validate.OneOf(VALID_CONDITIONS),
         load_default=ItemCondition.good.value,
+        required=False,
     )
     assigned_to_id = ma.auto_field()
 

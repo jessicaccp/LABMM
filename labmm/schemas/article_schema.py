@@ -13,6 +13,8 @@ class ArticleSchema(ma.SQLAlchemyAutoSchema):
         load_instance = True
         include_fk = True
 
+    authors = ma.Nested("MemberSchema", many=True, only=("id", "first_name", "last_name"), dump_only=True)
+
 
 class ArticleInputSchema(ma.SQLAlchemySchema):
     class Meta:
@@ -26,11 +28,12 @@ class ArticleInputSchema(ma.SQLAlchemySchema):
     status = ma.auto_field(
         validate=validate.OneOf(VALID_STATUSES),
         load_default=ArticleStatus.in_progress.value,
+        required=False,
     )
     submission_deadline = ma.auto_field()
     published_at = ma.auto_field()
-    authors = ma.auto_field(load_default=list)
-    in_charge = ma.auto_field(load_default=list)
+    authors = ma.auto_field(load_default=list, required=False)
+    in_charge = ma.auto_field(load_default=list, required=False)
 
 
 article_schema = ArticleSchema()
