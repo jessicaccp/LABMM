@@ -1,6 +1,6 @@
 from flask import Flask
 
-from labmm.routes.articles import bp as articles_bp
+from labmm.routes.activities import bp as activities_bp
 from labmm.routes.auth import bp as auth_bp
 from labmm.routes.inventory import bp as inventory_bp
 from labmm.routes.laboratories import bp as labs_bp
@@ -16,10 +16,11 @@ def register_blueprints(app: Flask) -> None:
     app.register_blueprint(members_bp)
     app.register_blueprint(projects_bp)
     app.register_blueprint(research_bp)
-    app.register_blueprint(articles_bp)
+    app.register_blueprint(activities_bp)
     app.register_blueprint(inventory_bp)
     app.register_blueprint(roles_bp)
 
     if app.debug:
         from labmm.routes.debug import bp as debug_bp
+
         app.register_blueprint(debug_bp)

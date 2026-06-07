@@ -1,5 +1,5 @@
 from labmm.extensions import db
-from labmm.models.article import Article
+from labmm.models.activity import Activity
 from labmm.models.lab_membership import LabMembership, LabRole
 from labmm.models.laboratory import Laboratory
 from labmm.models.member import Member
@@ -47,20 +47,20 @@ def test_cascade_delete_lab_removes_projects(app, db_tables):
         assert db.session.get(Project, project_id) is None
 
 
-def test_cascade_delete_lab_removes_articles(app, db_tables):
+def test_cascade_delete_lab_removes_activities(app, db_tables):
     with app.app_context():
         lab = Laboratory(name="CascadeLab3")
         db.session.add(lab)
         db.session.commit()
-        article = Article(title="Paper A", lab_id=lab.id)
-        db.session.add(article)
+        activity = Activity(title="Activity A", lab_id=lab.id)
+        db.session.add(activity)
         db.session.commit()
-        article_id = article.id
+        activity_id = activity.id
 
         db.session.delete(lab)
         db.session.commit()
 
-        assert db.session.get(Article, article_id) is None
+        assert db.session.get(Activity, activity_id) is None
 
 
 def test_cascade_delete_lab_removes_memberships(app, db_tables):
@@ -71,8 +71,7 @@ def test_cascade_delete_lab_removes_memberships(app, db_tables):
         member.set_password("p")
         db.session.add(member)
         db.session.commit()
-        membership = LabMembership(member_id=member.id, lab_id=lab.id,
-                                   roles=[LabRole.staff])
+        membership = LabMembership(member_id=member.id, lab_id=lab.id, roles=[LabRole.staff])
         db.session.add(membership)
         db.session.commit()
         lab_id = lab.id
@@ -81,9 +80,9 @@ def test_cascade_delete_lab_removes_memberships(app, db_tables):
         db.session.delete(lab)
         db.session.commit()
 
-        assert LabMembership.query.filter_by(
-            member_id=member_id, lab_id=lab_id
-        ).first() is None
+        assert (
+            LabMembership.query.filter_by(member_id=member_id, lab_id=lab_id).first() is None
+        )
 
 
 def test_member_research_association(app, db_tables):
@@ -105,20 +104,39 @@ def test_member_research_association(app, db_tables):
         assert member in refreshed.members
 
 
-def test_article_author_association(app, db_tables):
+def test_activity_participant_association(app, db_tables):
     with app.app_context():
-        lab = Laboratory(name="ArticleLab")
+        lab = Laboratory(name="ActivityLab")
         db.session.add(lab)
         member = Member(first_name="C", last_name="D", email="cd@lab.local")
         member.set_password("p")
         db.session.add(member)
         db.session.commit()
-        article = Article(title="Test Paper", lab_id=lab.id)
-        db.session.add(article)
+        activity = Activity(title="Test Activity", lab_id=lab.id)
+        db.session.add(activity)
         db.session.commit()
 
-        article.authors.append(member)
+        activity.participants.append(member)
         db.session.commit()
 
-        refreshed = db.session.get(Article, article.id)
-        assert member in refreshed.authors
+        refreshed = db.session.get(Activity, activity.id)
+        assert member in refreshed.participants
+
+
+def test_activity_in_charge_association(app, db_tables):
+    with app.app_context():
+        lab = Laboratory(name="InChargeLab")
+        db.session.add(lab)
+        member = Member(first_name="E", last_name="F", email="ef@lab.local")
+        member.set_password("p")
+        db.session.add(member)
+        db.session.commit()
+        activity = Activity(title="Managed Activity", lab_id=lab.id)
+        db.session.add(activity)
+        db.session.commit()
+
+        activity.in_charge.append(member)
+        db.session.commit()
+
+        refreshed = db.session.get(Activity, activity.id)
+        assert member in refreshed.in_charge
