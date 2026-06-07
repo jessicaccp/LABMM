@@ -1,9 +1,9 @@
-from labmm.schemas.article_schema import (  # noqa: F401
-    ArticleInputSchema,
-    ArticleSchema,
-    article_input_schema,
-    article_schema,
-    articles_schema,
+from labmm.schemas.activity_schema import (  # noqa: F401
+    ActivityInputSchema,
+    ActivitySchema,
+    activities_schema,
+    activity_input_schema,
+    activity_schema,
 )
 from labmm.schemas.lab_membership_schema import (  # noqa: F401
     LabMembershipInputSchema,

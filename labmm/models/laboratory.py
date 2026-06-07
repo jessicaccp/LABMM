@@ -24,8 +24,8 @@ class Laboratory(db.Model):
     projects = db.relationship(
         "Project", back_populates="laboratory", cascade="all, delete-orphan"
     )
-    articles = db.relationship(
-        "Article", back_populates="laboratory", cascade="all, delete-orphan"
+    activities = db.relationship(
+        "Activity", back_populates="laboratory", cascade="all, delete-orphan"
     )
     inventory_items = db.relationship(
         "InventoryItem", back_populates="laboratory", cascade="all, delete-orphan"
