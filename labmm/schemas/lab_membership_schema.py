@@ -30,6 +30,9 @@ class LabMembershipInputSchema(msh.Schema):
     compensation_value = msh.fields.Decimal(
         load_default=None, allow_none=True, places=2
     )
+    reports_to_id = msh.fields.Integer(
+        load_default=None, allow_none=True, required=False
+    )
 
 
 class LabMembershipUpdateSchema(msh.Schema):

@@ -43,6 +43,7 @@ def test_manager_can_add_member(client, db_tables, lab, super_admin,
                        headers=ceo_headers)
     assert resp.status_code == 201
     assert "researcher" in resp.get_json()["roles"]
+    assert resp.get_json()["reports_to_id"] is None
 
 
 def test_researcher_cannot_add_member(client, db_tables, lab, super_admin,
@@ -67,6 +68,46 @@ def test_add_duplicate_member_returns_409(client, db_tables, lab, ceo,
     assert resp.status_code == 409
 
 
+def test_manager_can_add_member_with_reports_to(
+    client, db_tables, lab, super_admin, sa_headers, ceo_headers, manager
+):
+    r = client.post("/auth/register",
+                    json={"first_name": "Subordinate", "last_name": "Guy",
+                          "email": "sub@lab.local", "password": "pass",
+                          "cpf": "99900000004"},
+                    headers=sa_headers)
+    new_id = r.get_json()["member"]["id"]
+    resp = client.post(f"/labs/{lab}/members",
+                       json={
+                           "member_id": new_id, 
+                           "roles": ["researcher"],
+                           "reports_to_id": manager
+                       },
+                       headers=ceo_headers)
+    assert resp.status_code == 201
+    data = resp.get_json()
+    assert "researcher" in data["roles"]
+    assert data["reports_to_id"] == manager
+
+
+def test_member_cannot_report_to_self(client, db_tables, lab, super_admin, 
+                                      sa_headers, ceo_headers):
+    r = client.post("/auth/register",
+                     json={"first_name": "Lone", "last_name": "Wolf",
+                           "email": "wolf@lab.local", "password": "pass",
+                           "cpf": "99900000005"},
+                     headers=sa_headers)
+    new_id = r.get_json()["member"]["id"]
+    resp = client.post(f"/labs/{lab}/members",
+                       json={
+                           "member_id": new_id, 
+                           "roles": ["researcher"],
+                           "reports_to_id": new_id
+                       },
+                       headers=ceo_headers)
+    assert resp.status_code == 422
+
+
 # ── Update role ───────────────────────────────────────────────────────────────
 
 def test_manager_can_update_member_role(client, db_tables, lab, researcher,
@@ -76,6 +117,15 @@ def test_manager_can_update_member_role(client, db_tables, lab, researcher,
                       headers=ceo_headers)
     assert resp.status_code == 200
     assert "engineer" in resp.get_json()["roles"]
+
+
+def test_manager_can_update_reports_to(client, db_tables, lab, researcher, 
+                                       manager, ceo_headers):
+    resp = client.put(f"/labs/{lab}/members/{researcher}",
+                      json={"roles": ["researcher"], "reports_to_id": manager},
+                      headers=ceo_headers)
+    assert resp.status_code == 200
+    assert resp.get_json()["reports_to_id"] == manager
 
 
 # ── Remove member ─────────────────────────────────────────────────────────────
